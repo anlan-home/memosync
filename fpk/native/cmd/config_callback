@@ -1,0 +1,46 @@
+#!/bin/bash
+
+### 用户在 fnOS 应用「设置」页修改配置后的回调（加固版）
+### 同步服务端口到 config.yaml 与桌面入口，并把旧端口写入 302 跳转列表
+### 改完需在应用中心重启应用生效
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APPDEST="${TRIM_APPDEST:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PKGVAR="${TRIM_PKGVAR:-${APPDATADIR:-${APPDEST}/data}}"
+
+PORT="${MEMOSYNC_PORT:-${memosync_port:-}}"
+case "${PORT}" in
+    ''|*[!0-9]*|0) PORT="" ;;
+esac
+
+if [ -n "${PORT}" ]; then
+    CFG="${APPDEST}/conf/config.yaml"
+    mkdir -p "${PKGVAR}/logs" 2>/dev/null
+    {
+        echo "=== config_callback $(date '+%Y-%m-%d %H:%M:%S') 端口改为 ${PORT} ==="
+        echo "APPDEST=${APPDEST} PKGVAR=${PKGVAR}"
+    } >> "${PKGVAR}/logs/install.log" 2>/dev/null
+
+    if [ -f "${CFG}" ]; then
+        OLD_PORT=$(sed -n 's/^listen: ":\([0-9]*\)".*/\1/p' "${CFG}" | head -1)
+        sed -i "s/^listen:.*/listen: \":${PORT}\"/" "${CFG}"
+        if [ -n "${OLD_PORT}" ] && [ "${OLD_PORT}" != "${PORT}" ]; then
+            sed -i '/^redirect_ports:/d' "${CFG}"
+            echo "redirect_ports: [${OLD_PORT}]" >> "${CFG}"
+        fi
+    else
+        {
+            echo "listen: \":${PORT}\""
+            echo "data_dir: \"${PKGVAR}\""
+            echo "base_url: \"\""
+            echo "log_file: \"${PKGVAR}/logs/memosync.log\""
+        } > "${CFG}" 2>/dev/null
+    fi
+
+    UICFG="${APPDEST}/ui/config"
+    if [ -f "${UICFG}" ]; then
+        sed -i "s/\"port\": \"[0-9]*\"/\"port\": \"${PORT}\"/" "${UICFG}" 2>/dev/null
+    fi
+fi
+
+exit 0

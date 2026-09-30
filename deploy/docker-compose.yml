@@ -1,0 +1,24 @@
+services:
+  memosync:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: memosync:1.0.0
+    container_name: memosync
+    restart: unless-stopped
+    ports:
+      - "5231:5231"
+    environment:
+      - MEMOSYNC_DATA_DIR=/data
+      # 首次启动可指定管理员账号密码（不填则随机生成，看容器日志或 /data/initial_admin_password.txt）
+      # - MEMOSYNC_ADMIN_USER=admin
+      # - MEMOSYNC_ADMIN_PASSWORD=change-me
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5231/api/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

@@ -1,0 +1,19 @@
+{
+  "id": "memosync",
+  "name": "家庭备忘录",
+  "version": "1.0.0",
+  "description": "自托管的家庭备忘录同步服务：多成员、共享空间、附件、提醒与自动备份。配套 Android 客户端，数据全部保存在本机 NAS。",
+  "author": "family",
+  "arch": ["amd64", "arm64"],
+  "port": 5231,
+  "protocol": "http",
+  "entry": "/",
+  "data_dir": "/vol1/@appdata/memosync",
+  "start": "scripts/start.sh",
+  "stop": "scripts/stop.sh",
+  "pre_install": "scripts/pre-install.sh",
+  "post_install": "scripts/post-install.sh",
+  "pre_uninstall": "scripts/pre-uninstall.sh",
+  "icon": "icon.png",
+  "homepage": "https://github.com/yourname/memosync"
+}

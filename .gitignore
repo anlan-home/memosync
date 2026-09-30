@@ -1,0 +1,28 @@
+# ---- 构建产物与运行时数据（不入库）----
+dist/
+server/data/
+**/data/logs/
+**/initial_admin_password.txt
+*.log
+
+# Go
+server/vendor/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/.kotlin/
+android/*.hprof
+
+# fnpack 打包暂存目录（由 build-fpk.sh 生成）
+fpk/pkg-*/
+
+# IDE / 系统
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

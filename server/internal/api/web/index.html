@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家庭备忘录 · 服务管理</title>
+<style>
+  :root{--ink:#1F1B16;--muted:#8A8177;--line:#EDE6D9;--bg:#FDF8EF;--amber:#F59E0B;--deep:#B45309;--card:#FFFDF8;--red:#C0395D;--green:#2E9E6B}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#F1ECE2;font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);min-height:100vh;display:flex;justify-content:center;padding:24px 16px}
+  .wrap{width:100%;max-width:860px}
+  h1{font-size:22px;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin-bottom:12px}
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{padding:8px 16px;border-radius:12px;background:#E9E2D4;cursor:pointer;font-size:13.5px;border:none;color:#6E655A}
+  .tab.on{background:var(--ink);color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:500;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  input,select{border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;font-size:13.5px;outline:none;width:100%}
+  input:focus{border-color:var(--amber)}
+  label{font-size:12px;color:var(--muted);display:block;margin:10px 0 4px}
+  button{border:none;border-radius:12px;padding:9px 18px;font-size:13.5px;cursor:pointer;background:var(--amber);color:#fff}
+  button:hover{filter:brightness(1.05)}
+  button.ghost{background:#EFE9DC;color:#6E655A}
+  button.danger{background:#FBE3EA;color:var(--red)}
+  button.small{padding:5px 10px;font-size:12px;border-radius:9px}
+  .row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+  .row>div{flex:1;min-width:140px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat{background:#F7F2E7;border-radius:12px;padding:12px}
+  .stat b{font-size:20px;display:block}
+  .stat span{font-size:12px;color:var(--muted)}
+  .msg{border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:none}
+  .msg.ok{background:#E4F5EC;color:var(--green);display:block}
+  .msg.err{background:#FBE3EA;color:var(--red);display:block}
+  .code-big{font-size:34px;letter-spacing:8px;text-align:center;font-weight:700;background:#FFF3D6;border-radius:14px;padding:18px;margin:12px 0;font-family:monospace}
+  .muted{color:var(--muted);font-size:12px}
+  .hidden{display:none}
+  .pill{font-size:11px;border-radius:8px;padding:2px 8px;background:#F1EADA;color:#6E655A}
+  .pill.admin{background:#FDE9C8;color:var(--deep)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗒️ 家庭备忘录 · 服务管理</h1>
+  <div class="sub" id="serverAddr"></div>
+
+  <!-- 登录 -->
+  <div class="card" id="loginCard">
+    <h2>管理员登录</h2>
+    <div class="msg" id="loginMsg"></div>
+    <label>用户名</label><input id="luser" autocomplete="username">
+    <label>密码</label><input id="lpass" type="password" autocomplete="current-password">
+    <div style="margin-top:14px"><button id="loginBtn">登 录</button></div>
+    <p class="muted" style="margin-top:10px">首次安装：初始管理员密码打印在服务日志中，同时保存在数据目录 initial_admin_password.txt。</p>
+  </div>
+
+  <!-- 主体 -->
+  <div id="main" class="hidden">
+    <div class="tabs">
+      <button class="tab on" data-tab="members">家庭成员</button>
+      <button class="tab" data-tab="devices">设备管理</button>
+      <button class="tab" data-tab="pair">接入配对</button>
+      <button class="tab" data-tab="storage">存储与备份</button>
+      <button class="tab" data-tab="notify">提醒推送</button>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <!-- 成员 -->
+    <div class="card" id="tab-members">
+      <h2>家庭成员</h2>
+      <table id="userTable"><thead><tr><th>用户名</th><th>昵称</th><th>角色</th><th>操作</th></tr></thead><tbody></tbody></table>
+      <h2 style="margin-top:18px">添加成员</h2>
+      <div class="row">
+        <div><label>用户名</label><input id="nuser"></div>
+        <div><label>昵称</label><input id="nnick"></div>
+        <div><label>初始密码</label><input id="npass" type="password"></div>
+      </div>
+      <div style="margin-top:12px"><button id="addUserBtn">创建成员</button></div>
+    </div>
+
+    <!-- 设备 -->
+    <div class="card hidden" id="tab-devices">
+      <h2>已登录设备</h2>
+      <table id="devTable"><thead><tr><th>成员</th><th>设备</th><th>最近活跃</th><th>操作</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <!-- 提醒推送 -->
+  <div class="card hidden" id="tab-notify">
+    <h2>飞书 / 钉钉 群机器人提醒</h2>
+    <p class="muted" style="margin-bottom:10px">备忘录到点提醒（笔记提醒、资产到期提醒）会推送到群聊。在飞书/钉钉群里添加「自定义机器人」获得 Webhook 地址。不改端口，保存即生效。</p>
+    <label>飞书 Webhook（如 https://open.feishu.cn/open-apis/bot/v2/hook/xxx）</label>
+    <input id="feishuUrl" placeholder="留空则不推送飞书">
+    <label>钉钉 Webhook（如 https://oapi.dingtalk.com/robot/send?access_token=xxx）</label>
+    <input id="dingUrl" placeholder="留空则不推送钉钉">
+    <label>钉钉加签密钥（SEC 开头，机器人安全设置里选「加签」时必填）</label>
+    <input id="dingSecret" placeholder="SEC…">
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button id="saveNotifyBtn">保存配置</button>
+      <button class="ghost" id="testFeishuBtn">测试飞书</button>
+      <button class="ghost" id="testDingBtn">测试钉钉</button>
+      <button class="ghost" id="fireBtn">手动触发一次到期扫描</button>
+    </div>
+  </div>
+
+  <!-- 配对 -->
+    <div class="card hidden" id="tab-pair">
+      <h2>为成员生成接入配对码</h2>
+      <p class="muted" style="margin-bottom:10px">家人手机在登录页选择「配对码接入」，输入配对码即可免密绑定，无需手输密码。配对码一次性有效。</p>
+      <div class="row">
+        <div><label>成员</label><select id="pairUser"></select></div>
+        <div><label>有效期</label>
+          <select id="pairTtl">
+            <option value="1">1 小时</option>
+            <option value="24" selected>24 小时</option>
+            <option value="168">7 天</option>
+          </select>
+        </div>
+        <div style="flex:0"><button id="genPairBtn">生成配对码</button></div>
+      </div>
+      <div id="pairOut" class="hidden">
+        <div class="code-big" id="pairCode"></div>
+        <p class="muted" id="pairExp" style="text-align:center"></p>
+        <p class="muted" style="text-align:center;margin-top:6px">服务器地址：<b id="pairUrl"></b></p>
+      </div>
+    </div>
+
+    <!-- 存储 -->
+    <div class="card hidden" id="tab-storage">
+      <h2>存储概览</h2>
+      <div class="stats" id="statsBox"></div>
+      <h2 style="margin-top:18px">服务端口</h2>
+      <p class="muted" style="margin-bottom:8px">修改后服务自动重启到新端口，旧端口会自动跳转（保存后约 1 秒）。手机客户端的 NAS 地址请同步使用新端口。</p>
+      <div class="row">
+        <div><label>新端口（1024-65535）</label><input id="newPort" inputmode="numeric" placeholder="5231"></div>
+        <div style="flex:0"><button id="setPortBtn">修改端口并重启</button></div>
+      </div>
+      <h2 style="margin-top:18px">备份</h2>
+      <p class="muted" style="margin-bottom:8px">每天 02:00 自动备份（保留最近 7 份），也可手动备份。</p>
+      <button id="backupBtn">立即备份</button>
+      <table style="margin-top:12px" id="backupTable"><thead><tr><th>备份文件</th><th>大小</th><th>时间</th></tr></thead><tbody></tbody></table>
+      <h2 style="margin-top:18px">全量导出</h2>
+      <p class="muted" style="margin-bottom:8px">导出全部备忘录（含回收站）与附件为 zip，可导入其他设备或归档。</p>
+      <a id="exportBtn" href="/api/v1/admin/export"><button class="ghost">下载导出包</button></a>
+    </div>
+  </div>
+</div>
+<script>
+let token = sessionStorage.getItem('ms_token') || '';
+const $ = id => document.getElementById(id);
+const api = (path, opt={}) => {
+  opt.headers = Object.assign({'Content-Type':'application/json'}, token?{'Authorization':'Bearer '+token}:{}, opt.headers||{});
+  return fetch(path, opt).then(async r => {
+    if (r.status === 401 && path !== '/api/v1/auth/login') { logout(); throw new Error('登录已失效'); }
+    const data = await r.json().catch(()=>({}));
+    if (!r.ok) throw new Error(data.error || ('HTTP '+r.status));
+    return data;
+  });
+};
+const show = (id, on) => $(id).classList.toggle('hidden', !on);
+function notify(ok, text){ const m=$('msg'); m.className='msg '+(ok?'ok':'err'); m.textContent=text; setTimeout(()=>{m.className='msg'},4000); }
+const fmtTime = t => t ? new Date(t).toLocaleString() : '-';
+const fmtSize = n => n>1048576 ? (n/1048576).toFixed(1)+' MB' : n>1024 ? (n/1024).toFixed(1)+' KB' : n+' B';
+
+$('serverAddr').textContent = '服务地址：' + location.origin + '  ·  Android 客户端登录时填这个地址';
+
+function logout(){ token=''; sessionStorage.removeItem('ms_token'); show('loginCard',true); show('main',false); }
+
+$('loginBtn').onclick = async () => {
+  try {
+    const d = await api('/api/v1/auth/login', {method:'POST', body: JSON.stringify({username:$('luser').value.trim(), password:$('lpass').value, device_name:'管理页'})});
+    if (d.user.role !== 'admin') { throw new Error('该账号不是管理员'); }
+    token = d.token; sessionStorage.setItem('ms_token', token);
+    show('loginCard', false); show('main', true); loadAll();
+  } catch(e) { const m=$('loginMsg'); m.className='msg err'; m.textContent=e.message; }
+};
+$('lpass').addEventListener('keydown', e => { if(e.key==='Enter') $('loginBtn').click(); });
+
+async function loadAll(){ loadUsers(); loadDevices(); loadPairSelect(); loadStats(); loadBackups(); loadNotify(); }
+
+async function loadUsers(){
+  const d = await api('/api/v1/admin/users');
+  const tb = $('userTable').querySelector('tbody'); tb.innerHTML='';
+  d.users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${u.username}</td><td>${u.nickname}</td>
+      <td><span class="pill ${u.role==='admin'?'admin':''}">${u.role==='admin'?'管理员':'成员'}</span></td>
+      <td><button class="small ghost" onclick="resetPw('${u.id}')">重置密码</button>
+          <button class="small danger" onclick="delUser('${u.id}','${u.username}')">删除</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+window.resetPw = async id => {
+  const pw = prompt('输入新密码（至少 4 位）：');
+  if (!pw) return;
+  try { await api('/api/v1/admin/users/'+id+'/password', {method:'POST', body:JSON.stringify({password:pw})}); notify(true,'密码已重置，该成员所有设备已下线'); loadUsers(); loadDevices(); }
+  catch(e){ notify(false, e.message); }
+};
+window.delUser = async (id, name) => {
+  if (!confirm('确定删除成员「'+name+'」？其私人空间与设备将被移除，家庭空间里的备忘录保留。')) return;
+  try { await api('/api/v1/admin/users/'+id, {method:'DELETE'}); notify(true,'已删除'); loadAll(); }
+  catch(e){ notify(false, e.message); }
+};
+$('addUserBtn').onclick = async () => {
+  try {
+    await api('/api/v1/admin/users', {method:'POST', body:JSON.stringify({username:$('nuser').value.trim(), nickname:$('nnick').value.trim(), password:$('npass').value, role:'member'})});
+    notify(true,'成员已创建'); $('nuser').value=$('nnick').value=$('npass').value=''; loadAll();
+  } catch(e){ notify(false, e.message); }
+};
+
+async function loadDevices(){
+  const d = await api('/api/v1/admin/devices');
+  const tb = $('devTable').querySelector('tbody'); tb.innerHTML='';
+  d.devices.forEach(x => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${x.user_name}</td><td>${x.name}</td><td class="muted">${fmtTime(x.last_seen)}</td>
+      <td><button class="small danger" onclick="kick('${x.id}')">下线</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+window.kick = async id => { try { await api('/api/v1/admin/devices/'+id, {method:'DELETE'}); notify(true,'设备已下线'); loadDevices(); } catch(e){ notify(false,e.message); } };
+
+async function loadPairSelect(){
+  const d = await api('/api/v1/admin/users');
+  const sel = $('pairUser'); sel.innerHTML='';
+  d.users.forEach(u => { const o=document.createElement('option'); o.value=u.id; o.textContent=u.nickname+'（'+u.username+'）'; sel.appendChild(o); });
+}
+$('genPairBtn').onclick = async () => {
+  try {
+    const d = await api('/api/v1/admin/pair-code', {method:'POST', body:JSON.stringify({user_id:$('pairUser').value, ttl_hours:+$('pairTtl').value})});
+    show('pairOut', true);
+    $('pairCode').textContent = d.code;
+    $('pairExp').textContent = '有效期至 ' + fmtTime(d.expires_at);
+    $('pairUrl').textContent = d.url;
+  } catch(e){ notify(false, e.message); }
+};
+
+async function loadStats(){
+  const d = await api('/api/v1/admin/stats');
+  $('statsBox').innerHTML = `
+    <div class="stat"><b>${d.users}</b><span>成员</span></div>
+    <div class="stat"><b>${d.memos}</b><span>备忘录</span></div>
+    <div class="stat"><b>${d.deleted_memos}</b><span>回收站</span></div>
+    <div class="stat"><b>${d.attachments}</b><span>附件数</span></div>
+    <div class="stat"><b>${fmtSize(d.blob_bytes)}</b><span>附件体积</span></div>
+    <div class="stat"><b>${d.backup_count}</b><span>备份份数</span></div>`;
+}
+async function loadBackups(){
+  const d = await api('/api/v1/admin/backups');
+  const tb = $('backupTable').querySelector('tbody'); tb.innerHTML='';
+  d.backups.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${b.name}</td><td>${fmtSize(b.size)}</td><td class="muted">${fmtTime(b.at)}</td>
+      <td><button class="small ghost" onclick="restoreBackup('${b.name}')">恢复</button></td>`;
+    tb.appendChild(tr);
+  });
+  if (!d.backups.length) tb.innerHTML = '<tr><td colspan="4" class="muted">还没有备份</td></tr>';
+}
+window.restoreBackup = async name => {
+  if (!confirm('确定从 '+name+' 恢复？\n当前所有备忘录数据将被备份时的内容覆盖（重启服务后生效）。')) return;
+  try {
+    const d = await api('/api/v1/admin/restore', {method:'POST', body: JSON.stringify({name, confirm: true})});
+    notify(true, d.message || '恢复已就绪，重启服务后生效');
+  } catch(e){ notify(false, e.message); }
+};
+$('backupBtn').onclick = async () => {
+  try { const d = await api('/api/v1/admin/backup', {method:'POST'}); notify(true,'备份完成：'+d.name); loadStats(); loadBackups(); }
+  catch(e){ notify(false, e.message); }
+};
+
+$('setPortBtn').onclick = async () => {
+  const p = ($('newPort').value || '').trim();
+  if (!/^\d{4,5}$/.test(p) || +p < 1024 || +p > 65535) { notify(false, '端口需为 1024-65535 的数字'); return; }
+  if (!confirm('确定把服务端口改为 ' + p + '？\\n服务将自动重启到新端口，旧端口会自动跳转；\\n手机客户端的 NAS 地址请同步改为新端口。')) return;
+  try {
+    const d = await api('/api/v1/admin/port', {method:'POST', body: JSON.stringify({port: +p})});
+    notify(true, d.message || '端口已修改，服务重启中');
+    setTimeout(() => { location.host = location.hostname + ':' + p; location.reload(); }, 2000);
+  } catch(e){ notify(false, e.message); }
+};
+
+async function loadNotify(){
+  const d = await api('/api/v1/admin/notify');
+  $('feishuUrl').value = d.feishu_webhook || '';
+  $('dingUrl').value = d.dingtalk_webhook || '';
+  $('dingSecret').value = d.dingtalk_secret || '';
+}
+$('saveNotifyBtn').onclick = async () => {
+  try {
+    await api('/api/v1/admin/notify', {method:'PUT', body: JSON.stringify({
+      feishu_webhook: $('feishuUrl').value.trim(),
+      dingtalk_webhook: $('dingUrl').value.trim(),
+      dingtalk_secret: $('dingSecret').value.trim(),
+    })});
+    notify(true, '通知配置已保存');
+  } catch(e){ notify(false, e.message); }
+};
+$('testFeishuBtn').onclick = async () => {
+  try { await api('/api/v1/admin/notify/test', {method:'POST', body: JSON.stringify({channel:'feishu'})}); notify(true,'飞书测试消息已发送'); }
+  catch(e){ notify(false, e.message); }
+};
+$('testDingBtn').onclick = async () => {
+  try { await api('/api/v1/admin/notify/test', {method:'POST', body: JSON.stringify({channel:'dingtalk'})}); notify(true,'钉钉测试消息已发送'); }
+  catch(e){ notify(false, e.message); }
+};
+$('fireBtn').onclick = async () => {
+  try { const d = await api('/api/v1/admin/notify/fire', {method:'POST'}); notify(true, '已触发 ' + d.count + ' 条到期提醒'); }
+  catch(e){ notify(false, e.message); }
+};
+
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+  t.classList.add('on');
+  ['members','devices','pair','storage','notify'].forEach(n => show('tab-'+n, t.dataset.tab===n));
+});
+
+if (token) { // 尝试恢复会话
+  api('/api/v1/auth/me').then(u => {
+    if (u.role === 'admin') { show('loginCard', false); show('main', true); loadAll(); }
+    else logout();
+  }).catch(()=>{});
+}
+</script>
+</body>
+</html>

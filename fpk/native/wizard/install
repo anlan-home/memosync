@@ -1,0 +1,19 @@
+[
+  {
+    "stepTitle": "基础配置",
+    "items": [
+      {
+        "type": "text",
+        "field": "MEMOSYNC_PORT",
+        "label": "服务端口",
+        "initValue": "5231",
+        "placeholder": "5231",
+        "tip": "管理页与手机客户端的访问端口。安装后可在 fnOS 应用的「设置」页修改，改完需在应用中心重启应用生效。"
+      },
+      {
+        "type": "tips",
+        "helpText": "安装完成后，桌面点击「家庭备忘录」进入管理页；手机客户端登录时 NAS 地址填 http://NAS-IP:端口。"
+      }
+    ]
+  }
+]

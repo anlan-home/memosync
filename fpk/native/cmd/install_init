@@ -1,0 +1,42 @@
+#!/bin/bash
+
+### 安装前：初始化（加固版：目录推导不依赖注入变量，过程留痕）
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APPDEST="${TRIM_APPDEST:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PKGVAR="${TRIM_PKGVAR:-${APPDATADIR:-${APPDEST}/data}}"
+
+{
+    echo "=== install_init $(date '+%Y-%m-%d %H:%M:%S') ==="
+    echo "TRIM_APPDEST=${TRIM_APPDEST:-<unset>}  TRIM_PKGVAR=${TRIM_PKGVAR:-<unset>}  APPDATADIR=${APPDATADIR:-<unset>}"
+    echo "resolved: APPDEST=${APPDEST}  PKGVAR=${PKGVAR}  arch=$(uname -m)"
+} >> "${PKGVAR}/logs/install.log" 2>/dev/null || {
+    mkdir -p "${PKGVAR}/logs" 2>/dev/null
+    echo "=== install_init $(date) ===" >> "${PKGVAR}/logs/install.log" 2>/dev/null
+    echo "resolved: APPDEST=${APPDEST} PKGVAR=${PKGVAR}" >> "${PKGVAR}/logs/install.log" 2>/dev/null
+}
+
+mkdir -p "${PKGVAR}/logs" "${APPDEST}/conf" 2>/dev/null
+chmod +x "${APPDEST}/bin/memosync" 2>/dev/null
+
+# 首次安装写配置（向导端口优先）；升级重装不覆盖
+if [ ! -f "${APPDEST}/conf/config.yaml" ]; then
+    PORT="${MEMOSYNC_PORT:-${memosync_port:-5231}}"
+    case "${PORT}" in
+        ''|*[!0-9]*|0) PORT=5231 ;;
+    esac
+    {
+        echo "listen: \":${PORT}\""
+        echo "data_dir: \"${PKGVAR}\""
+        echo "base_url: \"\""
+        echo "log_file: \"${PKGVAR}/logs/memosync.log\""
+    } > "${APPDEST}/conf/config.yaml" 2>/dev/null
+fi
+
+# 桌面入口端口同步
+UICFG="${APPDEST}/ui/config"
+if [ -f "${UICFG}" ] && [ "${PORT:-5231}" != "5231" ]; then
+    sed -i "s/\"port\": \"[0-9]*\"/\"port\": \"${PORT}\"/" "${UICFG}" 2>/dev/null
+fi
+
+exit 0

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+### See fnOS application lifecycle documentation.
+
+exit 0

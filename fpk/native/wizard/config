@@ -1,0 +1,15 @@
+[
+  {
+    "stepTitle": "基础配置",
+    "items": [
+      {
+        "type": "text",
+        "field": "MEMOSYNC_PORT",
+        "label": "服务端口",
+        "initValue": "5231",
+        "placeholder": "5231",
+        "tip": "修改后点击保存，并在应用中心重启「家庭备忘录」后生效。桌面图标与手机客户端请使用新端口访问。"
+      }
+    ]
+  }
+]

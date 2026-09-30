@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>家庭备忘录 · UI 高保真原型</title>
+<style>
+  :root{
+    --ink:#1F1B16; --muted:#8A8177; --line:#EDE6D9;
+    --bg:#FDF8EF; --page:#E9E4DB;
+    --amber:#F59E0B; --amber-deep:#B45309; --amber-soft:#FDE9C8;
+    --c-lemon:#FFF3B0; --c-sky:#D6E9FF; --c-mint:#CFF3E0; --c-sakura:#FFE0E6;
+    --c-apricot:#FFE3C7; --c-lav:#E8E0FF;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--page);font-family:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;color:var(--ink);padding:36px 24px 64px}
+  h1{font-size:26px;text-align:center;letter-spacing:1px}
+  .sub{text-align:center;color:var(--muted);font-size:13px;margin:8px 0 30px}
+  .stage{display:flex;flex-wrap:wrap;gap:34px;justify-content:center}
+  .item{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .label{font-size:13px;color:var(--muted)}
+  .label b{color:var(--ink);margin-right:6px}
+
+  .phone{width:330px;height:690px;background:var(--bg);border:9px solid #17140F;border-radius:42px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(31,27,22,.18)}
+  .statusbar{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font-size:11px;color:var(--ink);flex:none}
+  .notch{width:84px;height:22px;background:#17140F;border-radius:12px;margin:0 auto;position:absolute;left:50%;transform:translateX(-50%);top:6px}
+  .body{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+  /* ===== 通用组件 ===== */
+  .search{display:flex;align-items:center;gap:8px;background:#F1EADA;border-radius:24px;padding:9px 14px;color:var(--muted);font-size:13px}
+  .chips{display:flex;gap:8px;padding:10px 0 4px;overflow:hidden}
+  .chip{padding:5px 12px;border-radius:14px;font-size:12px;background:#F1EADA;color:#6E655A;white-space:nowrap}
+  .chip.on{background:var(--ink);color:#fff}
+  .fab{position:absolute;right:16px;bottom:76px;width:54px;height:54px;border-radius:18px;background:var(--amber);color:#fff;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(245,158,11,.45);z-index:5}
+  .navbar{position:absolute;left:0;right:0;bottom:0;background:#FFFDF8;border-top:1px solid var(--line);display:flex;padding:8px 6px 14px;z-index:4}
+  .nav{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:#A79C8E}
+  .nav .ic{font-size:19px}
+  .nav.on{color:var(--amber-deep);font-weight:600}
+  .syncbar{text-align:center;font-size:10.5px;color:var(--muted);padding:4px 0 6px}
+  .waterfall{columns:2;column-gap:10px;padding:4px 14px 90px}
+  .card{break-inside:avoid;border-radius:16px;padding:12px;margin-bottom:10px;font-size:12.5px;line-height:1.5;position:relative;box-shadow:0 1px 3px rgba(31,27,22,.06)}
+  .card .pin{position:absolute;top:10px;right:10px;font-size:11px}
+  .card h4{font-size:13.5px;margin-bottom:4px;font-weight:600}
+  .card .todo{display:flex;align-items:center;gap:6px;margin:3px 0;color:#4E463B}
+  .box{width:14px;height:14px;border-radius:5px;border:1.6px solid #B4A995;flex:none}
+  .box.done{background:var(--amber-deep);border-color:var(--amber-deep);position:relative}
+  .box.done::after{content:"✓";color:#fff;font-size:10px;position:absolute;left:1.5px;top:-2px}
+  .card .meta{margin-top:7px;font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
+  .tag-av{width:14px;height:14px;border-radius:50%;background:#E58FB1;color:#fff;font-size:8.5px;display:inline-flex;align-items:center;justify-content:center}
+  .badge-remind{display:inline-flex;align-items:center;gap:3px;background:rgba(180,83,9,.12);color:var(--amber-deep);font-size:10px;border-radius:8px;padding:2px 6px;margin-top:6px}
+  .imgs{display:flex;gap:4px;margin-top:6px}
+  .ph{flex:1;height:44px;border-radius:8px}
+
+  /* ===== 登录 ===== */
+  .login{flex:1;display:flex;flex-direction:column;align-items:center;padding:30px 26px 20px;text-align:center}
+  .logo{width:74px;height:74px;border-radius:24px;background:linear-gradient(135deg,#FFC94D,#F59E0B);display:flex;align-items:center;justify-content:center;font-size:38px;box-shadow:0 10px 22px rgba(245,158,11,.35);margin-bottom:14px}
+  .login h2{font-size:20px}
+  .login p{color:var(--muted);font-size:12px;margin:6px 0 22px}
+  .field{width:100%;text-align:left;margin-bottom:12px}
+  .field span{font-size:11px;color:var(--muted);display:block;margin:0 0 5px 4px}
+  .input{background:#F1EADA;border-radius:14px;padding:12px 14px;font-size:13px;color:#4E463B}
+  .input.ghost{color:#B9AE9E}
+  .btn{width:100%;border-radius:16px;padding:13px;text-align:center;font-size:15px;font-weight:600;margin-top:6px}
+  .btn.primary{background:var(--amber);color:#fff;box-shadow:0 8px 18px rgba(245,158,11,.4)}
+  .btn.outline{background:#FFFDF8;border:1.4px solid #E4D9C4;color:#6E655A;font-weight:500;margin-top:12px}
+  .divider{display:flex;align-items:center;gap:10px;width:100%;color:#C4B8A5;font-size:11px;margin:16px 0 2px}
+  .divider::before,.divider::after{content:"";flex:1;height:1px;background:#E4D9C4}
+  .safe{margin-top:auto;font-size:10.5px;color:var(--muted)}
+
+  /* ===== 编辑 ===== */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 8px;font-size:17px}
+  .topbar .acts{display:flex;gap:14px;font-size:15px;color:#6E655A}
+  .ed-title{font-size:20px;font-weight:700;padding:2px 18px 6px}
+  .todo-row{display:flex;align-items:center;gap:10px;margin:11px 18px;font-size:14px}
+  .todo-row .box{width:18px;height:18px;border-radius:6px}
+  .todo-row.done{color:#A79C8E;text-decoration:line-through}
+  .add{margin:14px 18px;color:var(--amber-deep);font-size:13.5px;font-weight:600}
+  .autosave{margin:auto 18px 10px;text-align:right;color:#B9AE9E;font-size:11px}
+  .toolbar{border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:12px 8px;background:#FFFDF8}
+  .toolbar .t{font-size:17px;opacity:.85}
+  .statusline{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:0 16px 14px;background:#FFFDF8}
+  .dot{width:7px;height:7px;border-radius:50%;background:#34B87A}
+
+  /* ===== 家庭 ===== */
+  .fam-head{padding:12px 16px 4px}
+  .fam-head h3{font-size:17px}
+  .fam-head p{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .avatars{display:flex;align-items:center;margin:12px 0 4px}
+  .av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;border:2.5px solid var(--bg)}
+  .av+.av{margin-left:-10px}
+  .add-av{width:40px;height:40px;border-radius:50%;border:1.6px dashed #C4B8A5;color:#A79C8E;display:flex;align-items:center;justify-content:center;font-size:18px;margin-left:-10px;background:#FFFDF8}
+  .sec{font-size:12px;color:var(--muted);margin:14px 18px 8px;font-weight:600}
+  .feed{margin:0 14px;background:#FFFDF8;border:1px solid var(--line);border-radius:16px;padding:4px 14px}
+  .feed-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #F4EEE2}
+  .feed-row:last-child{border-bottom:none}
+  .feed-row .txt{font-size:12.5px;line-height:1.45}
+  .feed-row .txt b{font-weight:600}
+  .feed-row .time{color:#B9AE9E;font-size:10.5px;margin-top:2px}
+
+  /* ===== 提醒 ===== */
+  .remind-title{font-size:19px;font-weight:700;padding:8px 18px 4px}
+  .rgroup{margin:10px 16px 0}
+  .rgroup .rt{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:7px;display:flex;justify-content:space-between}
+  .rrow{background:#FFFDF8;border:1px solid var(--line);border-radius:14px;padding:11px 13px;display:flex;align-items:center;gap:11px;margin-bottom:8px}
+  .rrow .ric{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+  .rrow .txt{flex:1}
+  .rrow .txt h5{font-size:13.5px;font-weight:600}
+  .rrow .txt span{font-size:11px;color:var(--muted)}
+  .pill{font-size:10.5px;border-radius:9px;padding:3px 8px;flex:none}
+  .pill.today{background:#FDE9C8;color:var(--amber-deep)}
+  .pill.over{background:#FFE0E6;color:#C0395D}
+
+  /* ===== 设置 ===== */
+  .me-card{margin:12px 16px;background:linear-gradient(135deg,#FFD98A,#F5B53F);border-radius:18px;padding:16px;display:flex;align-items:center;gap:12px;color:#4A2E05}
+  .me-card .av2{width:46px;height:46px;border-radius:50%;background:#fff3;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid rgba(255,255,255,.7)}
+  .me-card h4{font-size:15.5px}
+  .me-card p{font-size:11px;opacity:.85;margin-top:2px}
+  .group{margin:10px 16px;background:#FFFDF8;border:1px solid var(--line);border-radius:16px;padding:2px 14px}
+  .row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F4EEE2;font-size:13.5px}
+  .row:last-child{border-bottom:none}
+  .row .l{display:flex;align-items:center;gap:10px}
+  .row .l .ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .row .v{color:#A79C8E;font-size:12px;display:flex;align-items:center;gap:6px}
+  .seg{display:flex;background:#F1EADA;border-radius:10px;padding:2px;font-size:11px}
+  .seg i{font-style:normal;padding:4px 10px;border-radius:8px;color:#8A8177}
+  .seg i.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .switch{width:40px;height:23px;border-radius:12px;background:var(--amber);position:relative}
+  .switch::after{content:"";position:absolute;right:2.5px;top:2.5px;width:18px;height:18px;border-radius:50%;background:#fff}
+</style>
+</head>
+<body>
+<h1>家庭备忘录 · UI 高保真原型</h1>
+<p class="sub">Material 3 · 暖米黄主题 · 离线优先 · 长辈友好 &nbsp;|&nbsp; 6 个关键屏幕</p>
+<div class="stage">
+
+  <!-- ① 登录 -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div class="login">
+          <div class="logo">🗒️</div>
+          <h2>家庭备忘录</h2>
+          <p>记事存家里，全家自动同步</p>
+          <div class="field"><span>NAS 地址</span><div class="input">http://192.168.1.10:5231</div></div>
+          <div class="field"><span>账号</span><div class="input">妈妈</div></div>
+          <div class="field"><span>密码</span><div class="input ghost">••••••••</div></div>
+          <div class="btn primary">登 录</div>
+          <div class="divider">或</div>
+          <div class="btn outline">📷 扫码快速配置（推荐给长辈）</div>
+          <div class="safe">🔒 数据仅存储于家庭 NAS，不经过任何第三方</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><b>①</b>登录 / 扫码接入</div>
+  </div>
+
+  <!-- ② 首页 -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div style="padding:6px 16px 0">
+          <div class="search">🔍 搜索备忘录 <span style="margin-left:auto">👤</span></div>
+          <div class="chips"><span class="chip on">全部</span><span class="chip">家庭</span><span class="chip">个人</span><span class="chip">购物</span><span class="chip">⏰ 提醒</span></div>
+        </div>
+        <div class="syncbar">✅ 已同步 · 今天 12:30</div>
+        <div class="waterfall">
+          <div class="card" style="background:var(--c-lemon)">
+            <span class="pin">📌</span><h4>WiFi 密码</h4>
+            客厅：Family-5G<br>密码 8866-4402<br>光猫在电视柜下面
+            <div class="meta">爸爸 · 3 天前</div>
+          </div>
+          <div class="card" style="background:var(--c-sky)">
+            <h4>🛒 购物清单</h4>
+            <div class="todo"><span class="box done"></span>牛奶</div>
+            <div class="todo"><span class="box"></span>鸡蛋</div>
+            <div class="todo"><span class="box"></span>抽纸</div>
+            <div class="meta"><span class="tag-av">妈</span>妈妈 · 刚刚</div>
+          </div>
+          <div class="card" style="background:var(--c-sakura)">
+            <h4>爸爸的生日 🎂</h4>
+            10 月 1 日，记得订蛋糕（栗子味）
+            <div class="badge-remind">⏰ 10月1日 09:00 提醒</div>
+          </div>
+          <div class="card" style="background:var(--c-mint)">
+            <h4>缴物业费</h4>
+            三季度 1,280 元，转账备注房号
+            <div class="badge-remind">⏰ 明天 10:00</div>
+            <div class="meta">我 · 1 小时前</div>
+          </div>
+          <div class="card" style="background:var(--c-lav)">
+            <h4>国庆出游计划</h4>
+            <div class="imgs"><div class="ph" style="background:#C9B8F5"></div><div class="ph" style="background:#B8C9F5"></div></div>
+            <div class="meta">妹妹 · 昨天 · 2 张图片</div>
+          </div>
+        </div>
+        <div class="fab">＋</div>
+        <div class="navbar">
+          <div class="nav on"><span class="ic">🗒️</span>备忘录</div>
+          <div class="nav"><span class="ic">👪</span>家庭</div>
+          <div class="nav"><span class="ic">✅</span>清单</div>
+          <div class="nav"><span class="ic">⚙️</span>我的</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><b>②</b>首页 · 瀑布流卡片</div>
+  </div>
+
+  <!-- ③ 编辑（清单） -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div class="topbar"><span>←</span><span class="acts"><span>📌</span><span>👥</span><span>⋮</span></span></div>
+        <div class="ed-title">周六采购 🛒</div>
+        <div class="todo-row done"><span class="box done"></span>牛奶 ×2</div>
+        <div class="todo-row done"><span class="box done"></span>鸡蛋</div>
+        <div class="todo-row"><span class="box"></span>抽纸</div>
+        <div class="todo-row"><span class="box"></span>水果（爸爸想吃葡萄）</div>
+        <div class="todo-row" style="color:#B9AE9E"><span class="box" style="border-style:dashed"></span>＋ 添加条目</div>
+        <div class="autosave">自动保存中…</div>
+        <div style="margin:0 16px;background:var(--c-sky);border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:center;font-size:12px">
+          🖼️ <div class="ph" style="height:36px;background:#9FC5F0"></div>
+          <span style="color:var(--muted)">1 张图片</span>
+        </div>
+        <div class="toolbar"><span class="t">🖼️</span><span class="t">☑️</span><span class="t">🎨</span><span class="t">🔔</span><span class="t">🏷️</span></div>
+        <div class="statusline"><span class="dot"></span>👥 家庭共享 · ✅ 已同步 12:30</div>
+      </div>
+    </div>
+    <div class="label"><b>③</b>编辑页 · 清单形态（自动保存）</div>
+  </div>
+
+  <!-- ④ 家庭共享 -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div class="topbar"><span style="font-weight:700;font-size:17px">家庭空间</span><span class="acts"><span>⚙️</span></span></div>
+        <div class="fam-head">
+          <div class="avatars">
+            <div class="av" style="background:#F59E0B">我</div>
+            <div class="av" style="background:#5B8DEF">爸</div>
+            <div class="av" style="background:#E58FB1">妈</div>
+            <div class="av" style="background:#8F6FE5">妹</div>
+            <div class="add-av">＋</div>
+          </div>
+          <p>4 位成员已加入 · 全员可查看与编辑</p>
+        </div>
+        <div class="sec">最近动态</div>
+        <div class="feed">
+          <div class="feed-row"><div class="av" style="background:#E58FB1;width:32px;height:32px;font-size:11px">妈</div>
+            <div class="txt"><b>妈妈</b> 更新了 <b>购物清单</b>，勾掉了「牛奶」<div class="time">刚刚 · 已同步到全部设备</div></div></div>
+          <div class="feed-row"><div class="av" style="background:#8F6FE5;width:32px;height:32px;font-size:11px">妹</div>
+            <div class="txt"><b>妹妹</b> 新建了 <b>国庆出游计划</b><div class="time">昨天 21:04</div></div></div>
+          <div class="feed-row"><div class="av" style="background:#5B8DEF;width:32px;height:32px;font-size:11px">爸</div>
+            <div class="txt"><b>爸爸</b> 给 <b>缴物业费</b> 设了提醒<div class="time">昨天 19:40</div></div></div>
+        </div>
+        <div class="sec">共享备忘录 · 12 条</div>
+        <div style="margin:0 14px">
+          <div class="card" style="background:var(--c-apricot);margin:0 0 10px">
+            <h4>📌 全家用电安全</h4>出门四查：火、电、门、窗
+            <div class="meta">爸爸 · 置顶</div>
+          </div>
+          <div class="card" style="background:var(--c-mint);margin:0">
+            <h4>换季衣物收纳</h4>衣柜顶箱 → 阳台柜
+            <div class="badge-remind">⏰ 周六 15:00</div>
+          </div>
+        </div>
+        <div class="navbar">
+          <div class="nav"><span class="ic">🗒️</span>备忘录</div>
+          <div class="nav on"><span class="ic">👪</span>家庭</div>
+          <div class="nav"><span class="ic">✅</span>清单</div>
+          <div class="nav"><span class="ic">⚙️</span>我的</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><b>④</b>家庭空间 · 成员与动态</div>
+  </div>
+
+  <!-- ⑤ 提醒 -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div class="remind-title">提醒 ⏰</div>
+        <div class="rgroup">
+          <div class="rt"><span>已过期</span><span style="color:#C0395D">1 条</span></div>
+          <div class="rrow"><div class="ric" style="background:#FFE0E6">💊</div>
+            <div class="txt"><h5>给奶奶买降压药</h5><span>所属：个人 · 昨天</span></div><span class="pill over">已过期 1 天</span></div>
+        </div>
+        <div class="rgroup">
+          <div class="rt"><span>今天</span></div>
+          <div class="rrow"><div class="ric" style="background:#FDE9C8">🏠</div>
+            <div class="txt"><h5>缴物业费</h5><span>所属：家庭 · 我创建</span></div><span class="pill today">10:00</span></div>
+          <div class="rrow"><div class="ric" style="background:#FDE9C8">📞</div>
+            <div class="txt"><h5>给外婆打电话</h5><span>所属：个人</span></div><span class="pill today">20:30</span></div>
+        </div>
+        <div class="rgroup">
+          <div class="rt"><span>本周</span></div>
+          <div class="rrow"><div class="ric" style="background:#D6E9FF">🎂</div>
+            <div class="txt"><h5>爸爸的生日 · 订蛋糕</h5><span>栗子味，老字号那家</span></div><span class="pill" style="background:#EDF2FA;color:#4A6FA5">10月1日</span></div>
+          <div class="rrow"><div class="ric" style="background:#D6E9FF">🧺</div>
+            <div class="txt"><h5>换季衣物收纳</h5><span>所属：家庭</span></div><span class="pill" style="background:#EDF2FA;color:#4A6FA5">周六 15:00</span></div>
+        </div>
+        <div class="navbar">
+          <div class="nav"><span class="ic">🗒️</span>备忘录</div>
+          <div class="nav"><span class="ic">👪</span>家庭</div>
+          <div class="nav"><span class="ic">✅</span>清单</div>
+          <div class="nav on"><span class="ic">⚙️</span>我的</div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><b>⑤</b>提醒列表（精确闹钟推送）</div>
+  </div>
+
+  <!-- ⑥ 设置 -->
+  <div class="item">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="statusbar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="body">
+        <div class="remind-title">我的</div>
+        <div class="me-card"><div class="av2">我</div>
+          <div><h4>我（管理员）</h4><p>设备：小米 14 · 上次同步 12:30</p></div></div>
+        <div class="group">
+          <div class="row"><div class="l"><span class="ic" style="background:#FDE9C8">🗄️</span>NAS 服务器</div><span class="v">192.168.1.10:5231 ›</span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#D6F2E3">🔄</span>立即同步</div><span class="v"><span class="dot"></span>已同步</span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#EDE4FB">💾</span>离线缓存</div><span class="v">86 MB（含图片）›</span></div>
+        </div>
+        <div class="group">
+          <div class="row"><div class="l"><span class="ic" style="background:#FDE0E6">🎨</span>主题</div><span class="v">暖米黄 · 跟随系统 ›</span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#FFF3B0">🔤</span>字体大小</div>
+            <span class="v"><span class="seg"><i>标准</i><i class="on">大</i><i>特大</i></span></span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#D6E9FF">🧓</span>长辈简化模式</div><span class="v"><span class="switch"></span></span></div>
+        </div>
+        <div class="group">
+          <div class="row"><div class="l"><span class="ic" style="background:#F1EADA">🗑️</span>回收站</div><span class="v">3 条</span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#F1EADA">📦</span>导出全部数据</div><span class="v">›</span></div>
+          <div class="row"><div class="l"><span class="ic" style="background:#F1EADA">ℹ️</span>关于</div><span class="v">v1.0.0 ›</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="label"><b>⑥</b>设置 · 同步状态 / 长辈模式</div>
+  </div>
+
+</div>
+</body>
+</html>

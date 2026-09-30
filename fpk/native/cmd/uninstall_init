@@ -1,0 +1,16 @@
+#!/bin/bash
+
+### 卸载前：确保进程停止（数据目录由 fnOS 决定是否保留）
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+APPDEST="${TRIM_APPDEST:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
+PKGVAR="${TRIM_PKGVAR:-${APPDATADIR:-${APPDEST}/data}}"
+
+PID_FILE="${PKGVAR}/app.pid"
+if [ -r "${PID_FILE}" ]; then
+    pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+    kill -TERM "${pid}" 2>/dev/null || true
+    rm -f "${PID_FILE}"
+fi
+
+exit 0
