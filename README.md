@@ -23,6 +23,8 @@ dist/       构建产物（构建后生成）
 
 ---
 
+**下载安装包**：GitHub [Release v1.1.0](https://github.com/anlan-home/memosync/releases/tag/v1.1.0)（APK + 双架构 FPK）
+
 ## 一、服务端部署（三选一）
 
 ### 方式 A：直接运行二进制（最快验证）
