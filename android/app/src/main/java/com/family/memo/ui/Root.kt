@@ -101,60 +101,28 @@ fun MemoAppRoot(
 
     val startCreateAsset = rememberCreationFlow(vm) { id, _ -> onOpenAsset(id) }
 
-    Column(
+    Box(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
+            .statusBarsPadding(),
     ) {
-        Box(Modifier.weight(1f)) {
-            when (current) {
-                HomeTab.MEMOS -> MemoListTab(vm, HomeTab.MEMOS, filterChecklist = false, familyOnly = false, onOpenEditor, onOpenAsset)
-                HomeTab.FAMILY -> MemoListTab(vm, HomeTab.FAMILY, filterChecklist = false, familyOnly = true, onOpenEditor, onOpenAsset)
-                HomeTab.CHECKLIST -> MemoListTab(vm, HomeTab.CHECKLIST, filterChecklist = true, familyOnly = false, onOpenEditor, onOpenAsset)
-                HomeTab.ASSETS -> AssetTab(vm, onCreate = { startCreateAsset("asset") }, onOpenEditor = { id -> onOpenAsset(id) })
-                HomeTab.MINE -> MineTab(vm, onOpenEditor)
-            }
+        when (current) {
+            HomeTab.MEMOS -> MemoListTab(vm, HomeTab.MEMOS, filterChecklist = false, familyOnly = false, onOpenEditor, onOpenAsset)
+            HomeTab.FAMILY -> MemoListTab(vm, HomeTab.FAMILY, filterChecklist = false, familyOnly = true, onOpenEditor, onOpenAsset)
+            HomeTab.CHECKLIST -> MemoListTab(vm, HomeTab.CHECKLIST, filterChecklist = true, familyOnly = false, onOpenEditor, onOpenAsset)
+            HomeTab.ASSETS -> AssetTab(vm, onCreate = { startCreateAsset("asset") }, onOpenEditor = { id -> onOpenAsset(id) })
+            HomeTab.MINE -> MineTab(vm, onOpenEditor)
         }
-        HyperBottomBar(current) { tabName = it.name }
-    }
-}
-
-/** 扁平底部导航：图标+文字，选中染主色，无背景胶囊。 */
-@Composable
-private fun HyperBottomBar(current: HomeTab, onSelect: (HomeTab) -> Unit) {
-    Column(Modifier.fillMaxWidth()) {
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface)
-                .height(64.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            HomeTab.entries.forEach { t ->
-                val selected = t == current
-                val tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .clickable(onClick = { onSelect(t) })
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Icon(t.icon, t.label, Modifier.size(26.dp), tint = tint)
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        t.label,
-                        fontSize = 12.sp,
-                        fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
-                        color = tint,
-                    )
-                }
-            }
-        }
+        // 悬浮玻璃导航栏（浮在内容之上）
+        GlassBottomBar(
+            items = HomeTab.entries.map { it.icon to it.label },
+            selectedIndex = HomeTab.entries.indexOf(current),
+            onSelect = { tabName = HomeTab.entries[it].name },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
     }
 }
 

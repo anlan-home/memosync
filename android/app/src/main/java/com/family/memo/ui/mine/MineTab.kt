@@ -86,7 +86,7 @@ fun MineTab(vm: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
         ) {
             Text("我的", style = MaterialTheme.typography.headlineMedium)
         }
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp)) {
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),

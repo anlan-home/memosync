@@ -108,7 +108,7 @@ fun AssetTab(vm: HomeViewModel, onCreate: () -> Unit = {}, onOpenEditor: (String
         } else {
             LazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(assets, key = { it.id }) { memo ->
