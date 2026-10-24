@@ -70,6 +70,7 @@ func New(st *store.Store, cfg config.Config, logger *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /api/v1/admin/backups", s.admin(s.handleBackupList))
 	mux.HandleFunc("POST /api/v1/admin/restore", s.admin(s.handleRestore))
 	mux.HandleFunc("POST /api/v1/admin/port", s.admin(s.handleSetPort))
+	mux.HandleFunc("GET /api/v1/admin/diagnostics", s.admin(s.handleDiagnostics))
 	mux.HandleFunc("GET /api/v1/admin/notify", s.admin(s.handleNotifyGet))
 	mux.HandleFunc("PUT /api/v1/admin/notify", s.admin(s.handleNotifySet))
 	mux.HandleFunc("POST /api/v1/admin/notify/fire", s.admin(s.handleNotifyFire))

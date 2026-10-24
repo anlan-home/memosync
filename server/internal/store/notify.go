@@ -57,8 +57,11 @@ type FiredReminder struct {
 var httpClient = &http.Client{Timeout: 8 * time.Second}
 
 // FireDueReminders 扫描到点的提醒（笔记提醒 + 资产到期提醒统一走 remind_ats），
-// 向已配置的飞书/钉钉群机器人推送文本消息，并标记已提醒。
-// now 之前的 48 小时内的才触发——久未上线的设备不会收到历史轰炸。
+// 向已配置的飞书/钉钉群机器人推送文本消息。
+//
+// 失败重试语义：只要有一个渠道发送失败就整体算失败——不标记已提醒，下次扫描重试；
+// 连续失败 maxNotifyAttempts 次后放弃（标记已提醒），避免故障期间无限重试。
+// now 之前 48 小时内的才触发——久未上线的设备不会收到历史轰炸。
 func (s *Store) FireDueReminders(now int64) ([]FiredReminder, error) {
 	cfg := s.GetNotifyConfig()
 	if cfg.FeishuWebhook == "" && cfg.DingtalkWebhook == "" {
@@ -66,7 +69,7 @@ func (s *Store) FireDueReminders(now int64) ([]FiredReminder, error) {
 	}
 	windowFrom := now - 48*3600*1000
 	rows, err := s.db.Query(`
-		SELECT r.id, r.memo_id, r.at, m.title, m.type, m.content
+		SELECT r.id, r.memo_id, r.at, r.attempts, m.title, m.type, m.content
 		FROM reminders r JOIN memos m ON m.id = r.memo_id
 		WHERE r.reminded_at IS NULL AND r.at <= ? AND r.at > ?
 		ORDER BY r.at`, now, windowFrom)
@@ -74,17 +77,18 @@ func (s *Store) FireDueReminders(now int64) ([]FiredReminder, error) {
 		return nil, err
 	}
 	type due struct {
-		id      int64
-		memoID  string
-		at      int64
-		title   string
-		mtype   string
-		content string
+		id       int64
+		memoID   string
+		at       int64
+		attempts int
+		title    string
+		mtype    string
+		content  string
 	}
 	var dues []due
 	for rows.Next() {
 		var d due
-		if err := rows.Scan(&d.id, &d.memoID, &d.at, &d.title, &d.mtype, &d.content); err == nil {
+		if err := rows.Scan(&d.id, &d.memoID, &d.at, &d.attempts, &d.title, &d.mtype, &d.content); err == nil {
 			dues = append(dues, d)
 		}
 	}
@@ -94,7 +98,17 @@ func (s *Store) FireDueReminders(now int64) ([]FiredReminder, error) {
 	for _, d := range dues {
 		text := buildReminderText(d.at, d.title, d.mtype, d.content)
 		errs := s.sendWebhookText(cfg, text)
-		_, _ = s.db.Exec(`UPDATE reminders SET reminded_at=? WHERE id=?`, now, d.id)
+		if len(errs) == 0 {
+			_, _ = s.db.Exec(`UPDATE reminders SET reminded_at=?, attempts=attempts+1 WHERE id=?`, now, d.id)
+		} else {
+			attempts := d.attempts + 1
+			if attempts >= maxNotifyAttempts {
+				// 放弃：标记已提醒，避免持续重试
+				_, _ = s.db.Exec(`UPDATE reminders SET reminded_at=?, attempts=? WHERE id=?`, now, attempts, d.id)
+			} else {
+				_, _ = s.db.Exec(`UPDATE reminders SET attempts=? WHERE id=?`, attempts, d.id)
+			}
+		}
 		fired = append(fired, FiredReminder{
 			MemoID: d.memoID, Title: d.title, At: d.at,
 			Errors: strings.Join(errs, "; "),
@@ -102,6 +116,9 @@ func (s *Store) FireDueReminders(now int64) ([]FiredReminder, error) {
 	}
 	return fired, nil
 }
+
+// maxNotifyAttempts 单个提醒最多尝试推送次数。
+const maxNotifyAttempts = 3
 
 // SendTestMessage 管理页「发送测试消息」。
 func (s *Store) SendTestMessage(channel string) error {

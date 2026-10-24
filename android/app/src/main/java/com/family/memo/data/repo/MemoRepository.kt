@@ -155,6 +155,20 @@ class MemoRepository(
         Unit
     }
 
+    /**
+     * 游标失效时清理本地缓存：删除所有已同步（非 dirty）的备忘录，
+     * 保留用户尚未推送的本地编辑，避免丢数据。
+     */
+    override suspend fun resetLocalCache() {
+        val all = db.memoDao().allOnce()
+        for (m in all) {
+            if (!m.dirty) {
+                db.memoDao().hardDelete(m.id)
+            }
+        }
+        notifyWidgets()
+    }
+
     override suspend fun onSyncFinished() { /* 提醒重排由 SyncWorker 调 ReminderScheduler */ }
 
     // ---------- UI 操作 ----------

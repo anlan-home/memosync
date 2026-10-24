@@ -114,7 +114,7 @@ class AssetEditorViewModel(app: Application) : AndroidViewModel(app) {
     fun persist() {
         val id = memoId ?: return
         if (!_loaded.value) return
-        viewModelScope.launch {
+        com.family.memo.sync.WorkersScope.launch {
             val row = repo.db.memoDao().byId(id) ?: return@launch
             val exp = expiresAt.value
             val c = MemoContent(
@@ -156,6 +156,7 @@ class AssetEditorViewModel(app: Application) : AndroidViewModel(app) {
 fun AssetEditorScreen(memoId: String, onClose: () -> Unit, vm: AssetEditorViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     LaunchedEffect(memoId) { vm.load(memoId) }
     androidx.compose.runtime.DisposableEffect(memoId) { onDispose { vm.persist() } }
+    // 注意：VM 的 persist 已在应用级作用域中落库（见 AssetEditorViewModel.persist）
     val loaded by vm.loaded.collectAsState()
     val platform by vm.platform.collectAsState()
     val category by vm.category.collectAsState()
@@ -180,7 +181,7 @@ fun AssetEditorScreen(memoId: String, onClose: () -> Unit, vm: AssetEditorViewMo
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
                 navigationIcon = {
-                    IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "返回") }
+                    IconButton(onClick = { vm.persist(); onClose() }) { Icon(Icons.Filled.ArrowBack, "返回") }
                 },
                 title = { Text("数字资产", style = MaterialTheme.typography.titleMedium) },
                 actions = {

@@ -54,7 +54,8 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val api = container.remote.client()
             val list = api.spaces().spaces
-            container.db.spaceDao().upsertAll(list.map { com.family.memo.data.local.SpaceEntity(it.id, it.name, it.type) })
+            // 以服务端为准：被移出的工作组要能从本地消失
+            container.db.spaceDao().replaceAll(list.map { com.family.memo.data.local.SpaceEntity(it.id, it.name, it.type) })
         } catch (_: Exception) {
         }
     }

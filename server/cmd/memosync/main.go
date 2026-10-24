@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -69,7 +70,11 @@ func main() {
 	}
 	defer st.Close()
 
-	bootstrapAdmin(st, logger)
+	// 安装向导写入的初始管理员凭据（conf/admin.env）：读取后立即删除，不留在磁盘上
+	adminEnvPath := filepath.Join(filepath.Dir(*configPath), "admin.env")
+	loadedCreds := loadAdminEnv(adminEnvPath)
+
+	bootstrapAdmin(st, logger, loadedCreds)
 
 	go maintenanceLoop(st, logger)
 
@@ -90,6 +95,7 @@ func main() {
 		}
 	}()
 
+	api.SetVersion(version)
 	// 管理页改端口：写配置后原地重启（exec 自身，pid 不变，appcenter 无感知）
 	api.ConfigFilePath = *configPath
 	api.Restart = func() {
@@ -133,22 +139,63 @@ func main() {
 	logger.Info("已退出")
 }
 
-// bootstrapAdmin 首次启动创建管理员：密码取环境变量，否则随机生成
-// 写入数据目录 initial_admin_password.txt 并打印到日志。
-func bootstrapAdmin(st *store.Store, logger *slog.Logger) {
+// adminCreds 安装向导提供的初始管理员凭据。
+type adminCreds struct {
+	user string
+	pass string
+}
+
+// loadAdminEnv 读取 conf/admin.env（安装向导写入），返回凭据并删除文件。
+// 文件内容形如 MEMOSYNC_ADMIN_USER='admin' / MEMOSYNC_ADMIN_PASSWORD='...'。
+func loadAdminEnv(path string) adminCreds {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return adminCreds{}
+	}
+	_ = os.Remove(path) // 一次性
+	var c adminCreds
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		key, val, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		val = strings.Trim(strings.TrimSpace(val), "'\"")
+		switch strings.TrimSpace(key) {
+		case "MEMOSYNC_ADMIN_USER":
+			c.user = val
+		case "MEMOSYNC_ADMIN_PASSWORD":
+			c.pass = val
+		}
+	}
+	return c
+}
+
+// bootstrapAdmin 首次启动创建管理员：凭据优先级为 安装向导 > 环境变量 > 随机生成。
+// 随机生成时写入数据目录 initial_admin_password.txt 并打印到日志。
+func bootstrapAdmin(st *store.Store, logger *slog.Logger, wizard adminCreds) {
 	has, err := st.HasUsers()
 	if err != nil {
 		logger.Error("检查用户失败", "err", err)
 		os.Exit(1)
 	}
 	if has {
+		if wizard.pass != "" {
+			logger.Info("已存在数据，忽略安装向导提供的初始凭据")
+		}
 		return
 	}
-	username := os.Getenv("MEMOSYNC_ADMIN_USER")
+	username := wizard.user
+	if username == "" {
+		username = os.Getenv("MEMOSYNC_ADMIN_USER")
+	}
 	if username == "" {
 		username = "admin"
 	}
-	password := os.Getenv("MEMOSYNC_ADMIN_PASSWORD")
+	password := wizard.pass
+	if password == "" {
+		password = os.Getenv("MEMOSYNC_ADMIN_PASSWORD")
+	}
 	random := false
 	if password == "" {
 		password = store.PairCode() + store.PairCode()[:2] // 10 位随机
@@ -167,7 +214,7 @@ func bootstrapAdmin(st *store.Store, logger *slog.Logger) {
 		}
 		logger.Info("初始密码（请尽快登录修改）", "password", password, "also_at", pwdFile)
 	} else {
-		logger.Info("管理员密码来自 MEMOSYNC_ADMIN_PASSWORD 环境变量")
+		logger.Info("管理员密码来自安装向导或环境变量")
 	}
 }
 

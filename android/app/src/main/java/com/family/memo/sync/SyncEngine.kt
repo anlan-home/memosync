@@ -55,7 +55,15 @@ class SyncEngine(
         }
     }
 
-    private suspend fun pushDirty(report: SyncReport) {
+    /**
+     * 推送本地待同步条目。冲突时生成副本后递归再推一次；
+     * depth 限制防御服务端异常导致的无限递归。
+     */
+    private suspend fun pushDirty(report: SyncReport, depth: Int = 0) {
+        if (depth > 3) {
+            report.warnings += "冲突副本推送层数过深，本轮跳过（将下次重试）"
+            return
+        }
         val dirty = local.dirtyMemos()
         if (dirty.isEmpty()) return
         val resp: PushRespDto = remote.push(dirty.map { m -> PushInDto(m.toDto(), m.version) })
@@ -89,14 +97,23 @@ class SyncEngine(
                 }
             }
         }
-        if (conflictsCreated) pushDirty(report) // 冲突副本再推一次（新 id base=0）
+        if (conflictsCreated) pushDirty(report, depth + 1) // 冲突副本再推一次（新 id base=0）
     }
 
     private suspend fun pullIncremental(report: SyncReport) {
         var since = local.cursor()
-        // 单次最多拉 5 页，避免异常情况下的死循环
-        repeat(5) {
+        var resetDone = false
+        // 单次最多 50 页（1000 条/页），避免异常情况下的死循环
+        repeat(50) {
             val resp: PullRespDto = remote.pull(since, 200)
+            if (resp.resetRequired && !resetDone) {
+                // 服务端说游标失效：清空本地缓存并从头重建（dirty 行保留，稍后推送）
+                local.resetLocalCache()
+                since = 0
+                local.setCursor(0)
+                resetDone = true
+                report.warnings += "本地缓存已重建（服务端数据序号变化）"
+            }
             for (ch in resp.changes) {
                 applyChange(ch, report)
             }
@@ -104,6 +121,7 @@ class SyncEngine(
             since = resp.nextCursor
             report.pulled += resp.changes.size
             if (resp.nextCursor >= resp.latestSeq || resp.changes.isEmpty()) return
+            if (resp.nextCursor <= since) return
         }
     }
 
@@ -159,6 +177,9 @@ interface LocalSyncStore {
     suspend fun promotePendingToCache(sha: String, data: ByteArray)
     suspend fun hasCachedAttachment(sha: String): Boolean
     suspend fun saveAttachment(sha: String, data: ByteArray)
+
+    /** 游标失效时清空本地非待同步数据（保留 dirty 行，避免丢失未推送的编辑）。 */
+    suspend fun resetLocalCache()
     suspend fun onSyncFinished()
 }
 

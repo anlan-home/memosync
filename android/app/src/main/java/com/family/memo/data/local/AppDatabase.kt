@@ -123,6 +123,10 @@ interface MemoDao {
     @Query("SELECT * FROM memos WHERE deletedAt IS NULL AND remindAt IS NOT NULL AND remindAt > :now ORDER BY remindAt ASC")
     suspend fun upcomingReminders(now: Long): List<MemoEntity>
 
+    /** 全部带提醒的备忘录（含已过期），UI 侧按当前时间过滤，避免查询参数固定导致列表不刷新。 */
+    @Query("SELECT * FROM memos WHERE deletedAt IS NULL AND remindAt IS NOT NULL ORDER BY remindAt ASC")
+    fun observeAllReminders(): Flow<List<MemoEntity>>
+
     @Query("SELECT * FROM memos WHERE id = :id")
     suspend fun byId(id: String): MemoEntity?
 
@@ -170,6 +174,13 @@ interface SpaceDao {
 
     @Query("DELETE FROM spaces")
     suspend fun clear()
+
+    /** 以服务端列表为准替换本地空间（保留备忘录数据）。 */
+    @androidx.room.Transaction
+    suspend fun replaceAll(spaces: List<SpaceEntity>) {
+        clear()
+        upsertAll(spaces)
+    }
 }
 
 @Dao

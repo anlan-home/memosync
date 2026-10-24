@@ -95,6 +95,11 @@ class FakeLocal : LocalSyncStore {
 
     override suspend fun hasCachedAttachment(sha: String): Boolean = cachedBlobs.containsKey(sha)
     override suspend fun saveAttachment(sha: String, data: ByteArray) { cachedBlobs[sha] = data }
+    override suspend fun resetLocalCache() {
+        // 清空已同步数据，保留待推送的本地编辑
+        rows.values.filter { !it.dirty }.map { it.id }.forEach { rows.remove(it) }
+    }
+
     override suspend fun onSyncFinished() { syncFinishedCalls++ }
 }
 
@@ -325,6 +330,93 @@ class SyncEngineTest {
         assertEquals(1L, afterFirst)
         val report = SyncEngine(local, remote).syncNow() // 第二次无增量
         assertEquals(0, report.pulled)
+    }
+
+    @Test
+    fun `附件上传失败时中止本轮同步且保留待传`() = runTest {
+        val local = FakeLocal()
+        val remote = object : RemoteSyncApi by FakeRemote() {
+            override suspend fun checkExisting(shas: List<String>) = CheckRespDto(emptyMap())
+            override suspend fun upload(sha: String, data: ByteArray, filename: String, mime: String): UploadRespDto =
+                throw java.io.IOException("网络中断")
+        }
+        val sha = "c".repeat(64)
+        local.pending[sha] = PendingUploadEntity(sha, "/tmp/x", "p.png", "image/png", 4, 0)
+        local.put(memo("m1", dirty = true, attachments = listOf(AttachmentEntry(sha, "p.png", "image/png", 4))))
+        try {
+            SyncEngine(local, remote).syncNow()
+        } catch (_: java.io.IOException) {
+        }
+        // 待传附件必须保留（下次重试），备忘录也不能被误标为已同步
+        assertTrue(local.pending.containsKey(sha))
+        assertTrue(local.rows["m1"]!!.dirty)
+    }
+
+    @Test
+    fun `服务端持续返回冲突时不失控且最终收敛`() = runTest {
+        val local = FakeLocal()
+        // 异常服务端：任何推送都返回 conflict 且带 memo（最坏情况）
+        val remote = object : RemoteSyncApi by FakeRemote() {
+            var calls = 0
+            override suspend fun push(inputs: List<PushInDto>): PushRespDto {
+                calls++
+                if (calls > 20) throw IllegalStateException("push 调用失去控制: $calls")
+                return PushRespDto(
+                    inputs.map { i ->
+                        PushResultDto(
+                            id = i.memo.id,
+                            status = "conflict",
+                            memo = dto(memo(i.memo.id, title = "服务端标题", version = 9)),
+                        )
+                    },
+                    latestSeq = 0,
+                )
+            }
+        }
+        local.put(memo("m1", title = "我的编辑", version = 1, dirty = true))
+        val report = SyncEngine(local, remote).syncNow()
+
+        // 冲突副本只生成一层：conflict 标记阻止"副本的副本"
+        assertTrue("应至少发生一次冲突", report.conflicts >= 1)
+        // 推送次数有限（同步能收敛，不会挂死）
+        assertTrue("推送调用次数应有限", remote.calls <= 3)
+        // 所有本地行最终都不再 dirty（不会无限重试）
+        assertTrue("同步后不应残留 dirty 行: ${local.rows}", local.rows.values.none { it.dirty })
+    }
+
+    @Test
+    fun `游标失效时重建本地缓存但保留待推送编辑`() = runTest {
+        val local = FakeLocal()
+        val remote = object : RemoteSyncApi by FakeRemote() {
+            // 推送被服务端拒绝：本地编辑仍然是 dirty（模拟"推不上去"的最坏情况）
+            override suspend fun push(inputs: List<PushInDto>) = PushRespDto(
+                inputs.map { PushResultDto(id = it.memo.id, status = "error", message = "暂时无法写入") },
+                latestSeq = 0,
+            )
+
+            override suspend fun pull(since: Long, limit: Int) = PullRespDto(
+                changes = listOf(
+                    ChangeDto(seq = 1, memoId = "server-a", deleted = false, memo = dto(memo("server-a", title = "服务端A"))),
+                    ChangeDto(seq = 2, memoId = "server-b", deleted = false, memo = dto(memo("server-b", title = "服务端B"))),
+                ),
+                nextCursor = 2,
+                latestSeq = 2,
+                resetRequired = true,
+            )
+        }
+        // 本地有一条旧的已同步数据和一条待推送编辑
+        local.put(memo("stale", title = "过期缓存"))
+        local.put(memo("mine", title = "我没推的编辑", dirty = true))
+
+        val report = SyncEngine(local, remote).syncNow()
+
+        assertTrue("应提示重建: ${report.warnings}", report.warnings.any { it.contains("重建") })
+        assertNull("过期缓存应被清除", local.rows["stale"])
+        assertNotNull("待推送编辑必须保留", local.rows["mine"])
+        assertTrue("保留的行仍 dirty", local.rows["mine"]!!.dirty)
+        assertEquals("服务端A", local.rows["server-a"]?.title)
+        assertEquals("服务端B", local.rows["server-b"]?.title)
+        assertEquals(2L, local.cursor())
     }
 
     @Test

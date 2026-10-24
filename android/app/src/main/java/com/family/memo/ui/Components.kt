@@ -192,9 +192,11 @@ fun MemoCard(
                     }
                 }
             }
-            if (memo.remindAt != null) {
+            val nextRemind = memo.remindAtList.minOrNull()
+            if (nextRemind != null) {
                 Text(
-                    "⏰ " + com.family.memo.core.RelativeTime.format(memo.remindAt),
+                    "⏰ " + com.family.memo.core.RelativeTime.absolute(nextRemind) +
+                        if (memo.remindAtList.size > 1) " 等 ${memo.remindAtList.size} 次" else "",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 6.dp),

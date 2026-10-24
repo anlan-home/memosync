@@ -41,6 +41,21 @@ func (s *Server) handleSetPort(w http.ResponseWriter, r *http.Request, _ *store.
 		writeErr(w, http.StatusBadRequest, "新端口与当前端口相同")
 		return
 	}
+	if os.Getenv("TRIM_APPDEST") != "" {
+		// fnOS 应用包内：端口由应用中心声明与路由，自改端口不会被平台放行
+		writeErr(w, http.StatusBadRequest,
+			"运行在飞牛应用包内，端口由应用中心管理：请到 fnOS 应用「设置」页修改端口，保存后重启应用（桌面图标会自动使用新端口）")
+		return
+	}
+
+	// 先探测可用性：改完配置才发现端口被占用会让服务起不来
+	probe, perr := net.Listen("tcp", fmt.Sprintf(":%d", req.Port))
+	if perr != nil {
+		writeErr(w, http.StatusBadRequest,
+			fmt.Sprintf("端口 %d 已被占用或不可用，请换一个端口（%v）", req.Port, perr))
+		return
+	}
+	probe.Close()
 	if ConfigFilePath == "" {
 		writeErr(w, http.StatusInternalServerError, "服务未以配置文件方式启动，无法修改端口")
 		return

@@ -160,24 +160,43 @@ object Ids {
     }
 }
 
-/** 相对时间显示：刚刚 / n 分钟前 / HH:mm / 昨天 / M月d日 */
+/** 相对时间显示：刚刚 / n 分钟前 / HH:mm / 昨天 / M月d日；未来时间显示剩余时长。 */
 object RelativeTime {
     fun format(epochMilli: Long, now: Long = System.currentTimeMillis()): String {
         val d = now - epochMilli
+        if (d < 0) return formatFuture(-d)
         return when {
             d < 60_000 -> "刚刚"
             d < 3600_000 -> "${d / 60_000} 分钟前"
-            d < 86400_000 -> {
-                val cal = java.util.Calendar.getInstance()
-                cal.timeInMillis = epochMilli
-                "%02d:%02d".format(cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE))
-            }
+            d < 86400_000 -> hhmm(epochMilli)
             d < 172800_000 -> "昨天"
-            else -> {
-                val cal = java.util.Calendar.getInstance()
-                cal.timeInMillis = epochMilli
-                "${cal.get(java.util.Calendar.MONTH) + 1}月${cal.get(java.util.Calendar.DAY_OF_MONTH)}日"
-            }
+            else -> monthDay(epochMilli)
         }
     }
+
+    /** 未来时间：n 分钟后 / n 小时后 / 明天 HH:mm / M月d日 HH:mm */
+    private fun formatFuture(ahead: Long): String = when {
+        ahead < 60_000 -> "即将"
+        ahead < 3600_000 -> "${ahead / 60_000} 分钟后"
+        ahead < 86400_000 -> "${ahead / 3600_000} 小时后"
+        ahead < 172800_000 -> "明天"
+        else -> "${ahead / 86_400_000} 天后"
+    }
+
+    private fun hhmm(epochMilli: Long): String {
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = epochMilli }
+        return "%02d:%02d".format(
+            cal.get(java.util.Calendar.HOUR_OF_DAY),
+            cal.get(java.util.Calendar.MINUTE),
+        )
+    }
+
+    private fun monthDay(epochMilli: Long): String {
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = epochMilli }
+        return "${cal.get(java.util.Calendar.MONTH) + 1}月${cal.get(java.util.Calendar.DAY_OF_MONTH)}日"
+    }
+
+    /** 绝对时间：用于提醒时间等需要精确表达的场景（如 9月28日 15:30）。 */
+    fun absolute(epochMilli: Long): String =
+        java.text.SimpleDateFormat("M月d日 HH:mm", java.util.Locale.CHINA).format(java.util.Date(epochMilli))
 }

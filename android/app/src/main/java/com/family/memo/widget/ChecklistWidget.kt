@@ -10,13 +10,22 @@ import android.widget.RemoteViews
 import com.family.memo.MainActivity
 import com.family.memo.MemoApp
 import com.family.memo.R
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 /** 清单小组件：常驻桌面，条目可直接勾选，作为工作清单使用。 */
 class ChecklistWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, mgr: AppWidgetManager, appWidgetIds: IntArray) {
-        refreshAll(context, mgr)
+        // 数据库查询不能在主线程做（onUpdate 运行在主线程）
+        val pending = goAsync()
+        com.family.memo.sync.WorkersScope.launch {
+            try {
+                refreshAll(context, mgr)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     companion object {
@@ -113,10 +122,10 @@ class ChecklistWidgetFactory(
             R.id.widget_item_check,
             if (row.done) R.drawable.ic_widget_checked else R.drawable.ic_widget_unchecked,
         )
-        // fill-in 提供 index，配合 provider 里的 PendingIntent 模板完成勾选
+        // fill-in 用条目的真实索引（列表按完成状态重排，位置≠索引）
         views.setOnClickFillInIntent(
             R.id.widget_item_root,
-            Intent().putExtra("index", position),
+            Intent().putExtra("index", row.index),
         )
         return views
     }

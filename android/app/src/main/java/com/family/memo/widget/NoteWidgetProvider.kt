@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import com.family.memo.MainActivity
 import com.family.memo.MemoApp
 import com.family.memo.R
+import kotlinx.coroutines.launch
 import com.family.memo.core.ContentCodec
 import kotlinx.coroutines.runBlocking
 
@@ -17,7 +18,14 @@ import kotlinx.coroutines.runBlocking
 class NoteWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, mgr: AppWidgetManager, appWidgetIds: IntArray) {
-        refreshAll(context, mgr)
+        val pending = goAsync()
+        com.family.memo.sync.WorkersScope.launch {
+            try {
+                refreshAll(context, mgr)
+            } finally {
+                pending.finish()
+            }
+        }
     }
 
     companion object {

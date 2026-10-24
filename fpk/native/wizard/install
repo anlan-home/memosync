@@ -11,6 +11,22 @@
         "tip": "管理页与手机客户端的访问端口。安装后可在 fnOS 应用的「设置」页修改，改完需在应用中心重启应用生效。"
       },
       {
+        "type": "text",
+        "field": "MEMOSYNC_ADMIN_USER",
+        "label": "管理员账号",
+        "initValue": "admin",
+        "placeholder": "admin",
+        "tip": "首次安装时创建的管理员账号。仅首次生效：已有数据时不会改动现有账号。"
+      },
+      {
+        "type": "password",
+        "field": "MEMOSYNC_ADMIN_PASSWORD",
+        "label": "管理员密码",
+        "initValue": "",
+        "placeholder": "留空则随机生成（写入应用日志）",
+        "tip": "首次安装时设置管理员密码，至少 4 位。留空会随机生成并打印在应用日志的 info.log 里。"
+      },
+      {
         "type": "tips",
         "helpText": "安装完成后，桌面点击「家庭备忘录」进入管理页；手机客户端登录时 NAS 地址填 http://NAS-IP:端口。"
       }

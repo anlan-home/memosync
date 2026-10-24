@@ -98,9 +98,9 @@ fun EditorScreen(memoId: String, onClose: () -> Unit, vm: EditorViewModel = view
     var showRemind by remember { mutableStateOf(false) }
     var showSpacePicker by remember { mutableStateOf(false) }
 
-    // 退出编辑页时立即保存（自动保存有 2 秒防抖，快速返回会丢最后一段输入）
+    // 退出编辑页兜底保存（自动保存有 2 秒防抖，快速返回会丢最后一段输入）
     androidx.compose.runtime.DisposableEffect(memoId) {
-        onDispose { vm.persist() }
+        onDispose { vm.persistAndThen {} }
     }
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -118,7 +118,7 @@ fun EditorScreen(memoId: String, onClose: () -> Unit, vm: EditorViewModel = view
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
                 navigationIcon = {
-                    IconButton(onClick = onClose) { Icon(Icons.Filled.ArrowBack, "返回") }
+                    IconButton(onClick = { vm.persistAndThen(onClose) }) { Icon(Icons.Filled.ArrowBack, "返回") }
                 },
                 title = { Text("") },
                 actions = {

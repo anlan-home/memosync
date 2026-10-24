@@ -121,6 +121,45 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         remindAts.value = remindAts.value - at
     }
 
+    /**
+     * 立即保存并执行回调（页面关闭时用）。
+     * 用应用级作用域：视图模型随后可能被销毁，viewModelScope 里的协程会被取消。
+     */
+    fun persistAndThen(after: () -> Unit) {
+        val id = memoId
+        if (id == null || !ready) { after(); return }
+        val t = title.value
+        val tx = text.value
+        val its = items.value
+        val tg = tags.value
+        val ra = remindAts.value
+        com.family.memo.sync.WorkersScope.launch {
+            try {
+                val row = repo.db.memoDao().byId(id)
+                if (row != null) {
+                    val c = if (row.type == "checklist") {
+                        MemoContent(type = "checklist", text = tx, items = its)
+                    } else {
+                        MemoContent(type = "note", text = tx, items = its)
+                    }
+                    repo.updateMemo(id) {
+                        it.copy(
+                            title = t,
+                            content = ContentCodec.encode(c),
+                            tags = com.family.memo.data.local.encodeTags(tg),
+                            remindAts = com.family.memo.data.local.encodeAts(ra),
+                            remindAt = ra.minOrNull(),
+                        )
+                    }
+                    container.reminderScheduler.rescheduleAllAsync()
+                }
+            } catch (_: Exception) {
+            } finally {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { after() }
+            }
+        }
+    }
+
     fun addTag(raw: String) {
         val t = raw.trim()
         if (t.isEmpty() || tags.value.size >= 10) return

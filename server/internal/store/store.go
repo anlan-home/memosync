@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"memosync/internal/uuid"
@@ -135,7 +136,8 @@ CREATE TABLE IF NOT EXISTS reminders (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   memo_id     TEXT NOT NULL,
   at          INTEGER NOT NULL,
-  reminded_at INTEGER
+  reminded_at INTEGER,
+  attempts    INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_reminders_due ON reminders(at, reminded_at);
 CREATE TABLE IF NOT EXISTS space_members (
@@ -156,6 +158,10 @@ CREATE TABLE IF NOT EXISTS meta (
 	// 存量库平滑迁移：缺列则补（幂等）
 	if err := s.ensureColumn("memos", "tags",
 		`ALTER TABLE memos ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`); err != nil {
+		return err
+	}
+	if err := s.ensureColumn("reminders", "attempts",
+		`ALTER TABLE reminders ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0`); err != nil {
 		return err
 	}
 	return nil
@@ -221,8 +227,20 @@ func (s *Store) BootstrapAdmin(username, password string) (*User, error) {
 }
 
 func (s *Store) CreateUser(username, password, nickname, role string) (*User, error) {
+	username = strings.TrimSpace(username)
+	nickname = strings.TrimSpace(nickname)
 	if username == "" || nickname == "" {
 		return nil, fmt.Errorf("%w: 用户名和昵称不能为空", ErrBadRequest)
+	}
+	if len([]rune(username)) > 32 {
+		return nil, fmt.Errorf("%w: 用户名不能超过 32 个字符", ErrBadRequest)
+	}
+	for _, c := range username {
+		ok := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+			c == '_' || c == '-' || c == '.'
+		if !ok {
+			return nil, fmt.Errorf("%w: 用户名只能包含字母、数字、下划线、点、连字符", ErrBadRequest)
+		}
 	}
 	if len(password) < 4 {
 		return nil, fmt.Errorf("%w: 密码至少 4 位", ErrBadRequest)
@@ -266,6 +284,7 @@ func (s *Store) ListUsers() ([]User, error) {
 }
 
 // DeleteUser 删除成员：清其设备与个人空间；家庭空间里他创建的备忘录保留（creator 保留原值）。
+// 若他是某个工作组的组长，先把组长转让给剩余组员（无组员则转给管理员），避免留下无法管理的孤儿组。
 func (s *Store) DeleteUser(id string) error {
 	var role string
 	err := s.db.QueryRow(`SELECT role FROM users WHERE id=?`, id).Scan(&role)
@@ -287,9 +306,45 @@ func (s *Store) DeleteUser(id string) error {
 		return err
 	}
 	defer tx.Rollback()
+
+	// 组长转让：优先剩余组员，其次任意管理员
+	groupRows, err := tx.Query(`SELECT id FROM spaces WHERE type='group' AND owner_id=?`, id)
+	if err != nil {
+		return err
+	}
+	var groupIDs []string
+	for groupRows.Next() {
+		var gid string
+		if err := groupRows.Scan(&gid); err == nil {
+			groupIDs = append(groupIDs, gid)
+		}
+	}
+	groupRows.Close()
+	for _, gid := range groupIDs {
+		var successor string
+		err = tx.QueryRow(`SELECT user_id FROM space_members
+			WHERE space_id=? AND user_id<>? ORDER BY rowid LIMIT 1`, gid, id).Scan(&successor)
+		if errors.Is(err, sql.ErrNoRows) {
+			// 没有其他组员 → 交给管理员，保证组仍可管理
+			_ = tx.QueryRow(`SELECT id FROM users WHERE role='admin' AND id<>? ORDER BY created_at LIMIT 1`, id).Scan(&successor)
+		} else if err != nil {
+			return err
+		}
+		if successor != "" {
+			if _, err := tx.Exec(`UPDATE spaces SET owner_id=? WHERE id=?`, successor, gid); err != nil {
+				return err
+			}
+			// 同步成员角色标记
+			if _, err := tx.Exec(`UPDATE space_members SET role='owner' WHERE space_id=? AND user_id=?`, gid, successor); err != nil {
+				return err
+			}
+		}
+	}
+
 	for _, q := range []string{
 		`DELETE FROM devices WHERE user_id=?`,
 		`DELETE FROM spaces WHERE type='personal' AND owner_id=?`,
+		`DELETE FROM space_members WHERE user_id=?`,
 		`DELETE FROM users WHERE id=?`,
 	} {
 		if _, err := tx.Exec(q, id); err != nil {
@@ -337,6 +392,7 @@ func (s *Store) ChangeOwnPassword(id, oldPassword, newPassword string) error {
 }
 
 func (s *Store) Login(username, password, deviceName string) (token string, u *User, err error) {
+	username = strings.TrimSpace(username)
 	var (
 		id   string
 		hash string

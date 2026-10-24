@@ -20,8 +20,13 @@ async function api(method, path, token, body, raw) {
   try { json = JSON.parse(buf.toString('utf8')); } catch {}
   return { status: r.status, json, buf, headers: r.headers };
 }
+// 每次运行使用唯一后缀：真机可以反复跑，不会与上次的数据冲突
+const RUN_ID = (process.env.RUN_SUFFIX || Math.random().toString(36).slice(2, 6)).replace(/[^a-z0-9]/g, '');
+// 真机测试时 NAS 无法访问 127.0.0.1，需要用本机局域网 IP 作为 webhook 回调地址
+const WEBHOOK_HOST = process.env.LOCAL_IP || '127.0.0.1';
 function uuidOf(s) {
-  return '00000000-0000-4000-8000-' + [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
+  const key = s + '#' + RUN_ID;
+  return '00000000-0000-4000-8000-' + [...key].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7)
     .toString(16).padStart(12, '0').slice(-12).replace(/[^0-9a-f]/g, '0');
 }
 
@@ -33,19 +38,22 @@ console.log('== 1. 管理页与认证 ==');
   const bad = await api('POST', '/api/v1/auth/login', '', { username: 'admin', password: 'wrong' });
   check('错误密码 401', bad.status === 401);
 }
-const pwd = fs.readFileSync(process.env.PWD_FILE || 'data/initial_admin_password.txt', 'utf8').match(/初始密码: (\S+)/)[1];
-const login = await api('POST', '/api/v1/auth/login', '', { username: 'admin', password: pwd, device_name: 'E2E-管理员' });
+const pwd = process.env.ADMIN_PASSWORD
+  || fs.readFileSync(process.env.PWD_FILE || 'data/initial_admin_password.txt', 'utf8').match(/初始密码: (\S+)/)[1];
+const MOM = 'mom' + RUN_ID;
+const DAD = 'dad' + RUN_ID;
+const login = await api('POST', '/api/v1/auth/login', '', { username: 'admin', password: pwd, device_name: 'E2E管理员' + RUN_ID });
 check('管理员登录', login.status === 200 && !!login.json.token);
 const adminTok = login.json.token;
 const me = await api('GET', '/api/v1/auth/me', adminTok);
 check('me 返回 admin', me.json.username === 'admin' && me.json.role === 'admin');
 
 console.log('== 2. 家庭成员与空间 ==');
-const mk = await api('POST', '/api/v1/admin/users', adminTok, { username: 'mom', password: 'mom12345', nickname: '妈妈', role: 'member' });
+const mk = await api('POST', '/api/v1/admin/users', adminTok, { username: MOM, password: 'mom12345', nickname: '妈妈', role: 'member' });
 check('创建成员 妈妈', mk.status === 200 && !!mk.json.id);
-const mk2 = await api('POST', '/api/v1/admin/users', adminTok, { username: 'dad', password: 'dad12345', nickname: '爸爸', role: 'member' });
+const mk2 = await api('POST', '/api/v1/admin/users', adminTok, { username: DAD, password: 'dad12345', nickname: '爸爸', role: 'member' });
 check('创建成员 爸爸', mk2.status === 200);
-const momTok = (await api('POST', '/api/v1/auth/login', '', { username: 'mom', password: 'mom12345' })).json.token;
+const momTok = (await api('POST', '/api/v1/auth/login', '', { username: MOM, password: 'mom12345' })).json.token;
 const spaces = (await api('GET', '/api/v1/spaces', adminTok)).json.spaces;
 const momSpaces = (await api('GET', '/api/v1/spaces', momTok)).json.spaces;
 const family = spaces.find(s => s.type === 'family');
@@ -110,19 +118,19 @@ const dl304 = await fetch(`${BASE}/api/v1/attachments/${wantSha}`, { headers: { 
 check('ETag 304 生效', dl304.status === 304);
 
 console.log('== 5. 配对码接入 ==');
-const momId = (await api('GET', '/api/v1/admin/users', adminTok)).json.users.find(u => u.username === 'mom').id;
+const momId = (await api('GET', '/api/v1/admin/users', adminTok)).json.users.find(u => u.username === MOM).id;
 const pc = await api('POST', '/api/v1/admin/pair-code', adminTok, { user_id: momId, ttl_hours: 24 });
 check('生成配对码（8 位 + 地址）', pc.json.code?.length === 8 && !!pc.json.url);
-const pair = await api('POST', '/api/v1/auth/pair', '', { code: pc.json.code.toLowerCase(), device_name: '爸爸的旧手机给妈妈用' });
-check('配对码兑换成功（大小写不敏感）', pair.status === 200 && pair.json.user.username === 'mom');
+const pair = await api('POST', '/api/v1/auth/pair', '', { code: pc.json.code.toLowerCase(), device_name: '旧手机给妈妈用-' + RUN_ID });
+check('配对码兑换成功（大小写不敏感）', pair.status === 200 && pair.json.user.username === MOM);
 const rePair = await api('POST', '/api/v1/auth/pair', '', { code: pc.json.code });
 check('配对码一次性', rePair.status === 400);
 
 console.log('== 6. 管理：设备/统计/备份/导出 ==');
 const devs = (await api('GET', '/api/v1/admin/devices', adminTok)).json.devices;
-check('设备列表含 E2E 设备', devs.some(d => d.name === 'E2E-管理员') && devs.some(d => d.name?.includes('爸爸的旧手机')));
+check('设备列表含 E2E 设备', devs.some(d => d.name === 'E2E管理员' + RUN_ID) && devs.some(d => d.name?.includes('旧手机给妈妈用-' + RUN_ID)));
 const stats = (await api('GET', '/api/v1/admin/stats', adminTok)).json;
-check('统计正常（附件≥1 备份前 memo≥2）', stats.attachments >= 1 && stats.memos >= 2 && stats.users === 3);
+check('统计正常（附件≥1 memo≥2 用户≥3）', stats.attachments >= 1 && stats.memos >= 2 && stats.users >= 3);
 const bk = await api('POST', '/api/v1/admin/backup', adminTok);
 check('手动备份', bk.status === 200 && bk.json.name.startsWith('backup-'));
 const bks = (await api('GET', '/api/v1/admin/backups', adminTok)).json.backups;
@@ -239,7 +247,7 @@ console.log('== 6.95 多条提醒 / 工作组 / webhook ==');
   r = await api('POST', '/api/v1/spaces', momTok, { name: 'E2E工作组' });
   const grp = r.json;
   check('妈妈建工作组 ok', r.status === 200 && grp.type === 'group');
-  r = await api('POST', `/api/v1/spaces/${grp.id}/members`, momTok, { username: 'dad' });
+  r = await api('POST', `/api/v1/spaces/${grp.id}/members`, momTok, { username: DAD });
   check('按用户名拉人 ok', r.status === 200);
   const gid = uuidOf('工作笔记');
   r = await api('POST', '/api/v1/sync/push', momTok, {
@@ -256,30 +264,59 @@ console.log('== 6.95 多条提醒 / 工作组 / webhook ==');
     const srv = httpMod.createServer((req, res) => {
       let b = ''; req.on('data', c => b += c); req.on('end', () => { chunks.push(b); res.end(JSON.stringify({ code: 0 })); });
     });
-    srv.listen(0, '127.0.0.1', () => resolve({ srv, port: srv.address().port, chunks }));
+    srv.listen(0, '0.0.0.0', () => resolve({ srv, port: srv.address().port, chunks }));
   });
-  await api('PUT', '/api/v1/admin/notify', adminTok, { feishu_webhook: `http://127.0.0.1:${cap.port}/hook` });
+  await api('PUT', '/api/v1/admin/notify', adminTok, { feishu_webhook: `http://${WEBHOOK_HOST}:${cap.port}/hook` });
   const past = Date.now() - 3600000;
   await api('POST', '/api/v1/sync/push', adminTok, {
     memos: [{ memo: { id: uuidOf('到期提醒'), space_id: family.id, type: 'note', title: '缴物业费',
       content: '{}', client_mtime: Date.now(), remind_ats: [past] }, base_version: 0 }],
   });
   r = await api('POST', '/api/v1/admin/notify/fire', adminTok);
-  check('触发扫描返回 1 条', r.json.count === 1);
+  check('触发扫描至少返回 1 条', r.json.count >= 1, JSON.stringify(r.json).slice(0, 120));
   await new Promise(rs => setTimeout(rs, 300));
   const msg = JSON.parse(cap.chunks[0] || '{}');
-  check('飞书收到提醒文本', msg.msg_type === 'text' && (msg.content?.text || '').includes('缴物业费'));
+  const capText = cap.chunks
+    .map(c => { try { return JSON.parse(c).content?.text || ''; } catch { return ''; } })
+    .join(' | ');
+  check('飞书收到本次提醒文本', msg.msg_type === 'text' && capText.includes('缴物业费'), capText.slice(0, 150));
   cap.srv.close();
   // 重复触发不重发
   r = await api('POST', '/api/v1/admin/notify/fire', adminTok);
-  check('已提醒不重复触发', r.json.count === 0);
+  // 已送达的提醒不应再次推送（历史失败补发可能仍有，故只断言本次那条不再出现）
+  const again = (r.json.fired || []).filter(f => f.title === '缴物业费');
+  check('已送达的提醒不再重复推送', again.length === 0, JSON.stringify(r.json).slice(0, 150));
+}
+
+console.log('== 6.97 空间转换与隐私隔离 ==');
+{
+  // 管理员在家庭空间建一条 → 移入自己的个人空间 → 家人不应再看到内容
+  const adminSpaces2 = (await api('GET', '/api/v1/spaces', adminTok)).json.spaces;
+  const adminPersonal = adminSpaces2.find(s => s.type === 'personal').id;
+  const mid = uuidOf('隐私笔记');
+  let r = await api('POST', '/api/v1/sync/push', adminTok, {
+    memos: [{ memo: { id: mid, space_id: family.id, type: 'note', title: '家庭可见', content: '{"type":"note","text":"家庭可见内容"}', client_mtime: Date.now() }, base_version: 0 }],
+  });
+  check('家庭空间创建 ok', r.json.results[0].status === 'ok');
+  r = await api('POST', '/api/v1/sync/push', adminTok, {
+    memos: [{ memo: { id: mid, space_id: adminPersonal, type: 'note', title: '私有内容', content: '{"type":"note","text":"这是私密的"}', client_mtime: Date.now() }, base_version: 1 }],
+  });
+  check('转换为个人空间 ok', r.json.results[0].status === 'ok' && r.json.results[0].memo.space_id === adminPersonal);
+  // 家人从 0 游标拉取：应只拿到墓碑，不含明文
+  const pMom = (await api('GET', '/api/v1/sync/pull?since=0', momTok)).json.changes;
+  const entry = pMom.find(c => c.memo_id === mid);
+  check('移入私人空间后家人只收到墓碑（不含内容）', !!entry && entry.deleted === true && entry.memo === null);
+  // 管理员自己能看到
+  const pAdmin = (await api('GET', '/api/v1/sync/pull?since=0', adminTok)).json.changes;
+  const own = pAdmin.find(c => c.memo?.id === mid)?.memo;
+  check('管理员自己仍能看到私有内容', own?.space_id === adminPersonal);
 }
 
 console.log('== 7. 改密与设备下线 ==');const pw1 = await api('POST', '/api/v1/auth/password', momTok, { old_password: 'mom12345', new_password: 'mom54321' });
 check('成员自助改密', pw1.status === 200);
-const relog = await api('POST', '/api/v1/auth/login', '', { username: 'mom', password: 'mom54321' });
+const relog = await api('POST', '/api/v1/auth/login', '', { username: MOM, password: 'mom54321' });
 check('新密码可登录', relog.status === 200);
-const momDev = devs.find(d => d.name?.includes('爸爸的旧手机'));
+const momDev = devs.find(d => d.name?.includes('旧手机给妈妈用-' + RUN_ID));
 if (momDev) {
   const kick = await api('DELETE', '/api/v1/admin/devices/' + momDev.id, adminTok);
   const meAfter = await api('GET', '/api/v1/auth/me', pair.json.token);

@@ -32,15 +32,16 @@ func (s *Server) handlePush(w http.ResponseWriter, r *http.Request, u *store.Use
 }
 
 type pullResp struct {
-	Changes    []store.ChangeEntry `json:"changes"`
-	NextCursor int64               `json:"next_cursor"`
-	LatestSeq  int64               `json:"latest_seq"`
+	Changes       []store.ChangeEntry `json:"changes"`
+	NextCursor    int64               `json:"next_cursor"`
+	LatestSeq     int64               `json:"latest_seq"`
+	ResetRequired bool                `json:"reset_required"`
 }
 
 func (s *Server) handlePull(w http.ResponseWriter, r *http.Request, u *store.User) {
 	since, _ := strconv.ParseInt(r.URL.Query().Get("since"), 10, 64)
 	limit, _ := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 64)
-	entries, next, latest, err := s.st.Pull(u.ID, since, limit)
+	entries, next, latest, reset, err := s.st.Pull(u.ID, since, limit)
 	if err != nil {
 		mapStoreErr(w, err)
 		return
@@ -48,7 +49,7 @@ func (s *Server) handlePull(w http.ResponseWriter, r *http.Request, u *store.Use
 	if entries == nil {
 		entries = []store.ChangeEntry{}
 	}
-	writeJSON(w, http.StatusOK, pullResp{Changes: entries, NextCursor: next, LatestSeq: latest})
+	writeJSON(w, http.StatusOK, pullResp{Changes: entries, NextCursor: next, LatestSeq: latest, ResetRequired: reset})
 }
 
 type spacesResp struct {

@@ -784,7 +784,7 @@ func TestCleanupPurgesAndTombstones(t *testing.T) {
 		t.Fatalf("cleanup: %v", err)
 	}
 	// pull 应返回 memo=nil 的墓碑（空间过滤仍生效）
-	entries, _, _, err := st.Pull(adminID, 0, 100)
+	entries, _, _, _, err := st.Pull(adminID, 0, 100)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -73,6 +73,8 @@ data class PullRespDto(
     val changes: List<ChangeDto> = emptyList(),
     @SerialName("next_cursor") val nextCursor: Long = 0,
     @SerialName("latest_seq") val latestSeq: Long = 0,
+    /** 游标失效（备份恢复/变更被回收）：需要清空本地非待同步数据后全量重建。 */
+    @SerialName("reset_required") val resetRequired: Boolean = false,
 )
 
 @Serializable

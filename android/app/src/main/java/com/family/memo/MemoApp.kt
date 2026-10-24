@@ -86,6 +86,10 @@ class AppContainer(context: Context) {
                 val call = client.newCall(req)
                 monitorCall = call
                 call.execute().use { resp ->
+                    if (resp.code == 401) {
+                        // token 失效（被踢下线/改密）：停止监听，等下次登录重新启动
+                        return@eventMonitorLoop
+                    }
                     if (!resp.isSuccessful) throw ApiError("SSE HTTP ${resp.code}", resp.code >= 500)
                     val src = resp.body?.source() ?: throw ApiError("SSE 无响应体")
                     backoff = 1_000L

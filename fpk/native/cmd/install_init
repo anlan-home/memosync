@@ -1,22 +1,20 @@
 #!/bin/bash
 
 ### 安装前：初始化（加固版：目录推导不依赖注入变量，过程留痕）
+### 支持安装向导设置端口与初始管理员账号密码
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APPDEST="${TRIM_APPDEST:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 PKGVAR="${TRIM_PKGVAR:-${APPDATADIR:-${APPDEST}/data}}"
 
+mkdir -p "${PKGVAR}/logs" "${APPDEST}/conf" 2>/dev/null
+
 {
     echo "=== install_init $(date '+%Y-%m-%d %H:%M:%S') ==="
     echo "TRIM_APPDEST=${TRIM_APPDEST:-<unset>}  TRIM_PKGVAR=${TRIM_PKGVAR:-<unset>}  APPDATADIR=${APPDATADIR:-<unset>}"
     echo "resolved: APPDEST=${APPDEST}  PKGVAR=${PKGVAR}  arch=$(uname -m)"
-} >> "${PKGVAR}/logs/install.log" 2>/dev/null || {
-    mkdir -p "${PKGVAR}/logs" 2>/dev/null
-    echo "=== install_init $(date) ===" >> "${PKGVAR}/logs/install.log" 2>/dev/null
-    echo "resolved: APPDEST=${APPDEST} PKGVAR=${PKGVAR}" >> "${PKGVAR}/logs/install.log" 2>/dev/null
-}
+} >> "${PKGVAR}/logs/install.log" 2>/dev/null
 
-mkdir -p "${PKGVAR}/logs" "${APPDEST}/conf" 2>/dev/null
 chmod +x "${APPDEST}/bin/memosync" 2>/dev/null
 
 # 首次安装写配置（向导端口优先）；升级重装不覆盖
@@ -31,6 +29,18 @@ if [ ! -f "${APPDEST}/conf/config.yaml" ]; then
         echo "base_url: \"\""
         echo "log_file: \"${PKGVAR}/logs/memosync.log\""
     } > "${APPDEST}/conf/config.yaml" 2>/dev/null
+fi
+
+# 初始管理员账号密码（仅首次生效）：写入临时文件，服务首次启动时读取并删除
+ADMIN_USER="${MEMOSYNC_ADMIN_USER:-${memosync_admin_user:-}}"
+ADMIN_PASS="${MEMOSYNC_ADMIN_PASSWORD:-${memosync_admin_password:-}}"
+if [ -n "${ADMIN_PASS}" ] && [ ! -f "${PKGVAR}/memo.db" ]; then
+    {
+        echo "MEMOSYNC_ADMIN_USER='${ADMIN_USER:-admin}'"
+        echo "MEMOSYNC_ADMIN_PASSWORD='${ADMIN_PASS}'"
+    } > "${APPDEST}/conf/admin.env" 2>/dev/null
+    chmod 600 "${APPDEST}/conf/admin.env" 2>/dev/null
+    echo "已写入管理员初始化凭据（首次启动生效后自动删除）" >> "${PKGVAR}/logs/install.log" 2>/dev/null
 fi
 
 # 桌面入口端口同步

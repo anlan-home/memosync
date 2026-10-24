@@ -220,11 +220,12 @@ func (s *Store) pushOne(userID string, in *PushInput) PushResult {
 	}
 	ts := now()
 	newVersion := curVersion + 1
+	// space_id 也参与更新：支持家庭/工作组/个人空间之间转换（权限已在上面校验）
 	if _, err := tx.Exec(`UPDATE memos SET
-		type=?, title=?, content=?, color=?, pinned=?, archived=?, remind_at=?,
+		space_id=?, type=?, title=?, content=?, color=?, pinned=?, archived=?, remind_at=?,
 		updated_at=?, client_mtime=?, deleted_at=?, version=?, attachments=?, tags=?
 		WHERE id=?`,
-		m.Type, m.Title, m.Content, m.Color, b2i(m.Pinned), b2i(m.Archived), m.RemindAt,
+		m.SpaceID, m.Type, m.Title, m.Content, m.Color, b2i(m.Pinned), b2i(m.Archived), m.RemindAt,
 		ts, m.ClientMtime, m.DeletedAt, newVersion, string(attJSON), string(tagsJSON), m.ID); err != nil {
 		return PushResult{ID: m.ID, Status: "error", Message: err.Error()}
 	}
@@ -264,25 +265,47 @@ type ChangeEntry struct {
 }
 
 // Pull 拉取增量。since=客户端游标（changes.seq），只返回该用户可见空间的变更。
-func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeEntry, nextCursor int64, latestSeq int64, err error) {
+//
+// resetRequired 表示客户端游标已失效，必须全量重建本地库：
+//   - since 大于服务端最大序号（备份恢复后序号回退）
+//   - since 落后于仍保留的最小序号（changes 被清理任务回收）
+//
+// 此时忽略 since 从头返回，客户端清空本地非待同步数据后重新应用。
+func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeEntry, nextCursor int64, latestSeq int64, resetRequired bool, err error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 200
 	}
 	spaces, err := s.SpacesForUser(userID)
 	if err != nil {
-		return nil, since, 0, err
+		return nil, since, 0, false, err
 	}
 	latest, err := s.LatestSeq()
 	if err != nil {
-		return nil, since, 0, err
+		return nil, since, 0, false, err
+	}
+	// 游标有效性检查
+	var minSeq sql.NullInt64
+	if err := s.db.QueryRow(`SELECT MIN(seq) FROM changes`).Scan(&minSeq); err != nil {
+		return nil, since, 0, false, err
+	}
+	if since > latest {
+		// 序号回退（例如从备份恢复）：必须重建
+		since = 0
+		resetRequired = true
+	} else if since > 0 && minSeq.Valid && since < minSeq.Int64-1 {
+		// 中间有已被回收的变更：增量已不完整，必须重建
+		since = 0
+		resetRequired = true
 	}
 	if len(spaces) == 0 {
-		return nil, since, latest, nil
+		return nil, since, latest, resetRequired, nil
 	}
 	ph := strings.TrimRight(strings.Repeat("?,", len(spaces)), ",")
+	accessible := make(map[string]struct{}, len(spaces))
 	args := make([]any, 0, len(spaces)+2)
 	args = append(args, since)
 	for _, sp := range spaces {
+		accessible[sp.ID] = struct{}{}
 		args = append(args, sp.ID)
 	}
 	args = append(args, limit)
@@ -291,7 +314,7 @@ func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeE
 		WHERE c.seq > ? AND c.space_id IN (`+ph+`)
 		ORDER BY c.seq ASC LIMIT ?`, args...)
 	if err != nil {
-		return nil, since, latest, err
+		return nil, since, latest, false, err
 	}
 	defer rows.Close()
 	var out []ChangeEntry
@@ -308,7 +331,7 @@ func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeE
 		)
 		if err := rows.Scan(&e.Seq, &memoID, &deleted, &id, &creator, &space, &typ, &title, &content, &color,
 			&pinned, &archived, &remindAt, &createdAt, &updatedAt, &clientMtime, &deletedAt, &version, &att, &tags); err != nil {
-			return nil, since, latest, err
+			return nil, since, latest, false, err
 		}
 		e.Deleted = deleted == 1
 		e.MemoID = memoID.String
@@ -334,13 +357,20 @@ func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeE
 			if tags.Valid && json.Unmarshal([]byte(tags.String), &m.Tags) != nil {
 				m.Tags = []string{}
 			}
-			e.Memo = m
+			// 备忘录已移出该用户可见的空间（如从家庭移入他人私人空间）：
+			// 下发墓碑而非内容，避免隐私泄漏，同时让客户端清理本地副本。
+			if _, ok := accessible[m.SpaceID]; !ok {
+				e.Memo = nil
+				e.Deleted = true
+			} else {
+				e.Memo = m
+			}
 		}
 		out = append(out, e)
 		last = e.Seq
 	}
 	if err := rows.Err(); err != nil {
-		return nil, since, latest, err
+		return nil, since, latest, false, err
 	}
 	// 单连接池：显式关闭结果集，fillRemindAts 的新查询才能拿到连接
 	rows.Close()
@@ -351,7 +381,7 @@ func (s *Store) Pull(userID string, since int64, limit int64) (entries []ChangeE
 	if last > 0 {
 		nextCursor = last
 	}
-	return out, nextCursor, latest, nil
+	return out, nextCursor, latest, resetRequired, nil
 }
 
 // LatestSeq 当前变更序号最大值（客户端全量对齐用）。

@@ -46,7 +46,7 @@ class MineViewModel(app: Application) : AndroidViewModel(app) {
     val repo get() = container.repository
 
     val reminders: StateFlow<List<MemoEntity>> = container.db.memoDao()
-        .observeUpcomingReminders(System.currentTimeMillis())
+        .observeAllReminders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val trash: StateFlow<List<MemoEntity>> = container.db.memoDao().observeTrash()

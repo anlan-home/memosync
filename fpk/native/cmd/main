@@ -72,6 +72,14 @@ start_process() {
     fi
     chmod +x "${BIN}" 2>/dev/null
 
+    # 首次启动凭据（由 install_init 从安装向导写入），服务读取后自行删除
+    ADMIN_ENV="${APPDEST}/conf/admin.env"
+    if [ -f "${ADMIN_ENV}" ]; then
+        # shellcheck disable=SC1090
+        . "${ADMIN_ENV}" 2>/dev/null
+        export MEMOSYNC_ADMIN_USER MEMOSYNC_ADMIN_PASSWORD
+    fi
+
     log_msg "Starting memosync ... (APPDEST=${APPDEST} PKGVAR=${PKGVAR} CFG=${CFG})"
     "${BIN}" -config "${CFG}" >> "${LOG_FILE}" 2>&1 &
     printf "%s" "$!" > "${PID_FILE}" 2>/dev/null
