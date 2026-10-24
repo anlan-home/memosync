@@ -16,37 +16,99 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** 远端网关：Retrofit + DataStore token + 附件缓存目录，实现 RemoteSyncApi。 */
+/** 服务器地址来源：内网主地址 + 外网/备用地址，自动探测与切换。 */
 class RemoteGateway(
     private val prefs: Prefs,
     private val filesDir: File,
 ) : RemoteSyncApi {
 
-    /** 供空间管理等低频操作直接使用 API 客户端。 */
-    suspend fun client(): MemoApi {
-        val s = prefs.snapshot()
-        if (s.baseUrl.isBlank()) throw com.family.memo.data.api.ApiError("尚未配置服务器地址", offline = true)
-        return ApiClient.create(s.baseUrl) { s.token }
+    private val resolver = com.family.memo.data.api.EndpointResolver(probe = { url -> probeHealth(url) })
+
+    /** 探测某地址是否可用（2.5 秒超时，避免卡住同步）。 */
+    private suspend fun probeHealth(baseUrl: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val client = okhttp3.OkHttpClient.Builder()
+                .connectTimeout(2500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .readTimeout(2500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                .build()
+            val req = okhttp3.Request.Builder()
+                .url(baseUrl.trimEnd('/') + "/api/v1/health")
+                .build()
+            client.newCall(req).execute().use { it.isSuccessful }
+        } catch (_: Exception) {
+            false
+        }
     }
 
-    override suspend fun push(inputs: List<PushInDto>) = client().push(com.family.memo.data.api.PushReqDto(inputs))
+    /** 解析当前应使用的地址；返回 null 表示不可用。 */
+    suspend fun resolveBaseUrl(forceProbe: Boolean = false): com.family.memo.data.api.EndpointResolver.Result {
+        val s = prefs.snapshot()
+        if (s.baseUrl.isBlank() && s.baseUrlAlt.isBlank()) {
+            return com.family.memo.data.api.EndpointResolver.Result.NotConfigured
+        }
+        val r = resolver.resolve(s.baseUrl, s.baseUrlAlt, s.activeUrl, s.activeUrlAt, forceProbe)
+        if (r is com.family.memo.data.api.EndpointResolver.Result.Ready) {
+            if (r.url != s.activeUrl || r.probed) prefs.setActiveUrl(r.url)
+        }
+        return r
+    }
 
-    override suspend fun pull(since: Long, limit: Int) = client().pull(since, limit)
+    /** 供空间管理等低频操作直接使用 API 客户端（自动选地址）。 */
+    suspend fun client(): MemoApi {
+        val s = prefs.snapshot()
+        val r = resolveBaseUrl()
+        val url = when (r) {
+            is com.family.memo.data.api.EndpointResolver.Result.Ready -> r.url
+            is com.family.memo.data.api.EndpointResolver.Result.NotConfigured ->
+                throw com.family.memo.data.api.ApiError("尚未配置服务器地址", offline = true)
+            is com.family.memo.data.api.EndpointResolver.Result.Failed ->
+                throw com.family.memo.data.api.ApiError(
+                    "内网与外网地址都连不上（已尝试：${r.tried.joinToString()}）", offline = true,
+                )
+        }
+        return ApiClient.create(url) { s.token }
+    }
 
-    override suspend fun checkExisting(shas: List<String>) = client().check(com.family.memo.data.api.CheckReqDto(shas))
+    /**
+     * 一次调用：地址失效（IOException）时自动切换到另一个地址重试一次。
+     * 覆盖"在家用内网、出门用外网"的切换场景。
+     */
+    private suspend fun <T> withFailover(block: suspend (MemoApi) -> T): T {
+        val first = client()
+        try {
+            return block(first)
+        } catch (e: java.io.IOException) {
+            prefs.setActiveUrl("") // 让缓存失效，下次强制重新探测
+            val retry = try {
+                client()
+            } catch (_: Exception) {
+                throw e
+            }
+            return block(retry)
+        }
+    }
+
+    override suspend fun push(inputs: List<PushInDto>) =
+        withFailover { it.push(com.family.memo.data.api.PushReqDto(inputs)) }
+
+    override suspend fun pull(since: Long, limit: Int) = withFailover { it.pull(since, limit) }
+
+    override suspend fun checkExisting(shas: List<String>) =
+        withFailover { it.check(com.family.memo.data.api.CheckReqDto(shas)) }
 
     override suspend fun upload(sha: String, data: ByteArray, filename: String, mime: String): com.family.memo.data.api.UploadRespDto =
         withContext(Dispatchers.IO) {
             val tmp = File.createTempFile("up-", ".bin", filesDir)
             try {
                 tmp.writeBytes(data)
-                client().upload(com.family.memo.data.api.buildFilePart(tmp, mime, "file"))
+                withFailover { it.upload(com.family.memo.data.api.buildFilePart(tmp, mime, "file")) }
             } finally {
                 tmp.delete()
             }
         }
 
     override suspend fun download(sha: String): ByteArray = withContext(Dispatchers.IO) {
-        client().downloadRaw(sha).bytes()
+        withFailover { it.downloadRaw(sha).bytes() }
     }
 }
 

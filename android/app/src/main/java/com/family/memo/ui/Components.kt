@@ -68,6 +68,7 @@ fun MemoCard(
     onClick: () -> Unit,
     actions: MemoActions,
     modifier: Modifier = Modifier,
+    spaceLabel: String = "",
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -212,6 +213,13 @@ fun MemoCard(
             }
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (spaceLabel.isNotBlank()) {
+                    Text(
+                        spaceLabel + " · ",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (memo.conflict) {
                     Text("冲突副本 · ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                 }
@@ -274,6 +282,7 @@ fun MemoGrid(
     actionsFor: (MemoEntity) -> MemoActions,
     modifier: Modifier = Modifier,
     header: (@Composable () -> Unit)? = null,
+    spaceNameOf: (String) -> String = { "" },
 ) {
     LazyVerticalStaggeredGrid(
         columns = StaggeredGridCells.Adaptive(minSize = 158.dp),
@@ -290,6 +299,7 @@ fun MemoGrid(
                 memo = memo,
                 onClick = { onOpen(memo) },
                 actions = actionsFor(memo),
+                spaceLabel = spaceNameOf(memo.spaceId),
             )
         }
     }

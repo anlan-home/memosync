@@ -58,6 +58,12 @@ class AppContainer(context: Context) {
         monitorJob = monitorScope.launch { eventMonitorLoop() }
     }
 
+    /** 供深链接配置后立即触发一次同步。 */
+    fun syncWorkerRequest() {
+        SyncWorker.requestNow(appContext)
+        startEventMonitor()
+    }
+
     fun stopEventMonitor() {
         monitorJob?.cancel()
         monitorJob = null
@@ -74,13 +80,25 @@ class AppContainer(context: Context) {
             .build()
         while (monitorScope.isActive) {
             val snap = prefs.snapshot()
-            if (snap.token.isBlank() || snap.baseUrl.isBlank()) {
+            if (snap.token.isBlank() || (snap.baseUrl.isBlank() && snap.baseUrlAlt.isBlank())) {
                 delay(5_000)
+                continue
+            }
+            // 双地址：每次重连都重新探测（在家/在外自动选可用地址）
+            val resolved = try {
+                remote.resolveBaseUrl(forceProbe = true)
+            } catch (_: Exception) {
+                null
+            }
+            val base = (resolved as? com.family.memo.data.api.EndpointResolver.Result.Ready)?.url
+            if (base.isNullOrBlank()) {
+                delay(backoff)
+                backoff = (backoff * 2).coerceAtMost(60_000L)
                 continue
             }
             try {
                 val req = Request.Builder()
-                    .url(snap.baseUrl.trimEnd('/') + "/api/v1/sync/events")
+                    .url(base.trimEnd('/') + "/api/v1/sync/events")
                     .header("Authorization", "Bearer " + snap.token)
                     .build()
                 val call = client.newCall(req)

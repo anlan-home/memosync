@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -159,9 +161,11 @@ fun EditorScreen(memoId: String, onClose: () -> Unit, vm: EditorViewModel = view
                 },
                 onChecklist = { vm.toggleChecklist() },
                 onColor = { showColor = true },
+                onTag = { showTagInput = true },
                 onRemind = { showRemind = true },
                 memo = memo,
                 hasRemind = remindAts.isNotEmpty(),
+                hasTags = tags.isNotEmpty(),
             )
         },
     ) { padding ->
@@ -502,13 +506,16 @@ private fun EditorToolbar(
     onImage: () -> Unit,
     onChecklist: () -> Unit,
     onColor: () -> Unit,
+    onTag: () -> Unit,
     onRemind: () -> Unit,
     memo: MemoEntity?,
     hasRemind: Boolean,
+    hasTags: Boolean,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
     ) {
@@ -520,6 +527,12 @@ private fun EditorToolbar(
             )
         }
         IconButton(onClick = onColor) { Icon(Icons.Filled.Palette, "颜色") }
+        IconButton(onClick = onTag) {
+            Icon(
+                Icons.Filled.Label, "标签",
+                tint = if (hasTags) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         IconButton(onClick = onRemind) {
             Icon(
                 Icons.Filled.Notifications, "提醒",

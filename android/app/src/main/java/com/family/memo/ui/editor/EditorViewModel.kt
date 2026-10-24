@@ -133,10 +133,16 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         val its = items.value
         val tg = tags.value
         val ra = remindAts.value
+        val isEmptyDraft = t.isBlank() && tx.isBlank() &&
+            its.none { it.text.isNotBlank() } && tg.isEmpty() && ra.isEmpty() &&
+            (_memo.value?.attachmentList?.isEmpty() ?: true)
         com.family.memo.sync.WorkersScope.launch {
             try {
                 val row = repo.db.memoDao().byId(id)
-                if (row != null) {
+                if (row != null && isEmptyDraft) {
+                    // 什么都没写就退出：不留下空条目（同步后家人也看不到）
+                    repo.trash(id)
+                } else if (row != null) {
                     val c = if (row.type == "checklist") {
                         MemoContent(type = "checklist", text = tx, items = its)
                     } else {

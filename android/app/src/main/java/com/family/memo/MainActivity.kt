@@ -2,6 +2,7 @@ package com.family.memo
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -15,11 +16,13 @@ import com.family.memo.ui.MemoAppRoot
 import com.family.memo.ui.auth.LoginScreen
 import com.family.memo.ui.editor.EditorScreen
 import com.family.memo.ui.theme.MemoTheme
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleSetupDeepLink(intent)
         val openMemoId = intent?.getStringExtra("open_memo_id")
         setContent {
             // 深链只消费一次：旋转/重建后不再重复入栈
@@ -79,5 +82,34 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSetupDeepLink(intent)
+    }
+
+    /**
+     * 深链接配置服务器地址：familymemo://setup?primary=http://192.168.1.10:5231&alt=http://100.64.0.2:5231
+     * 用于快速接入（也可把这段链接做成二维码）。
+     */
+    private fun handleSetupDeepLink(intent: android.content.Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "familymemo" || data.host != "setup") return
+        val primary = data.getQueryParameter("primary").orEmpty()
+        val alt = data.getQueryParameter("alt").orEmpty()
+        if (primary.isBlank() && alt.isBlank()) return
+        val app = application as MemoApp
+        lifecycleScope.launch {
+            app.container.prefs.setEndpoints(normalize(primary), normalize(alt))
+            app.container.syncWorkerRequest()
+        }
+    }
+
+    private fun normalize(raw: String): String {
+        val v = raw.trim().trimEnd('/')
+        if (v.isEmpty()) return ""
+        return if (v.startsWith("http")) v else "http://$v"
     }
 }

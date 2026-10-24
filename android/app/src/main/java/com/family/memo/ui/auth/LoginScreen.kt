@@ -73,7 +73,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         com.family.memo.sync.SyncWorker.requestNow(getApplication())
     }
 
-    fun login(baseUrl: String, username: String, password: String, onDone: () -> Unit) {
+    fun login(baseUrl: String, altUrl: String, username: String, password: String, onDone: () -> Unit) {
         val url = normalizeUrl(baseUrl)
         if (url.isBlank()) {
             _state.value = _state.value.copy(error = "请填写 NAS 地址")
@@ -84,7 +84,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val api = ApiClient.create(url) { "" }
                 val resp = api.login(LoginReqDto(username, password, "Android 手机"))
-                container.prefs.saveLogin(url, resp.token, resp.user.id, resp.user.nickname, resp.user.role)
+                container.prefs.saveLogin(url, resp.token, resp.user.id, resp.user.nickname, resp.user.role, altUrl)
                 afterLogin(url, resp.token)
                 _state.value = _state.value.copy(loading = false)
                 onDone()
@@ -94,7 +94,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun pair(baseUrl: String, code: String, onDone: () -> Unit) {
+    fun pair(baseUrl: String, altUrl: String, code: String, onDone: () -> Unit) {
         val url = normalizeUrl(baseUrl)
         if (url.isBlank() || code.isBlank()) {
             _state.value = _state.value.copy(error = "请填写服务器地址和配对码")
@@ -105,7 +105,7 @@ class LoginViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val api = ApiClient.create(url) { "" }
                 val resp = api.pair(PairReqDto(code.trim().uppercase(), "Android 手机"))
-                container.prefs.saveLogin(url, resp.token, resp.user.id, resp.user.nickname, resp.user.role)
+                container.prefs.saveLogin(url, resp.token, resp.user.id, resp.user.nickname, resp.user.role, altUrl)
                 afterLogin(url, resp.token)
                 _state.value = _state.value.copy(loading = false)
                 onDone()
@@ -128,6 +128,7 @@ fun LoginScreen(onDone: () -> Unit) {
     val state by vm.state.collectAsState()
     var mode by remember { mutableStateOf(0) } // 0 密码 1 配对码
     var url by remember(state.serverUrl) { mutableStateOf(state.serverUrl) }
+    var altUrl by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var pass by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
@@ -167,6 +168,15 @@ fun LoginScreen(onDone: () -> Unit) {
             value = url,
             onValueChange = { url = it },
             label = { Text("NAS 地址（如 192.168.1.10:5231）") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+        )
+        OutlinedTextField(
+            value = altUrl,
+            onValueChange = { altUrl = it },
+            label = { Text("备用地址（外网 / Tailscale，可选）") },
+            supportingText = { Text("在家用主地址，出门自动切到备用地址", style = MaterialTheme.typography.labelSmall) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
@@ -212,12 +222,12 @@ fun LoginScreen(onDone: () -> Unit) {
             CircularProgressIndicator(Modifier.size(28.dp))
         } else if (mode == 0) {
             Button(
-                onClick = { vm.login(url, user.trim(), pass, onDone) },
+                onClick = { vm.login(url, altUrl, user.trim(), pass, onDone) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("登 录") }
         } else {
             Button(
-                onClick = { vm.pair(url, code, onDone) },
+                onClick = { vm.pair(url, altUrl, code, onDone) },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("接入家庭 NAS") }
         }

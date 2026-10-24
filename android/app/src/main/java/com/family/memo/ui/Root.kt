@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FamilyRestroom
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.StickyNote2
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,6 +23,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -128,22 +131,78 @@ private fun NewMemoFab(
     onOpenAsset: (String) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    // null=未选择；非空表示等待选择保存位置
+    var pendingType by remember { mutableStateOf<String?>(null) }
+    val spaces by vm.spaces.collectAsState()
     val scope = rememberCoroutineScope()
-    if (tab == HomeTab.ASSETS) {
-        // 资产页签：一键新建资产
-        ExtendedFloatingActionButton(
-            onClick = {
-                scope.launch {
-                    val space = vm.defaultSpaceId(familyOnly = true)
-                    val m = vm.repo.createMemo(space, "asset")
-                    onOpenAsset(m.id)
+
+    fun createIn(spaceId: String) {
+        val type = pendingType ?: return
+        pendingType = null
+        if (spaceId.isBlank()) return
+        scope.launch {
+            val m = vm.repo.createMemo(spaceId, type)
+            if (type == "asset") onOpenAsset(m.id) else onOpenEditor(m.id)
+        }
+    }
+
+    val title = when (pendingType) {
+        "note" -> "新建笔记，保存到"
+        "checklist" -> "新建清单，保存到"
+        "asset" -> "记一笔资产，保存到"
+        else -> ""
+    }
+
+    if (pendingType != null) {
+        AlertDialog(
+            onDismissRequest = { pendingType = null },
+            title = { Text(title) },
+            text = {
+                Column {
+                    Text(
+                        "个人空间只有你自己可见；家庭/工作组内成员都能看到并协作",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    spaces.sortedBy { if (it.type == "family") 0 else if (it.type == "group") 1 else 2 }
+                        .forEach { sp ->
+                            TextButton(
+                                onClick = { createIn(sp.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(
+                                    when (sp.type) {
+                                        "family" -> "👥 " + sp.name
+                                        "group" -> "💼 " + sp.name
+                                        else -> "🔒 " + sp.name
+                                    },
+                                )
+                            }
+                        }
                 }
             },
-            icon = { Icon(Icons.Filled.Add, null) },
-            text = { Text("记一笔资产") },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { pendingType = null }) { Text("取消") } },
         )
+    }
+
+    if (tab == HomeTab.ASSETS) {
+        androidx.compose.foundation.layout.Box {
+            ExtendedFloatingActionButton(
+                onClick = { expanded = true },
+                icon = { Icon(Icons.Filled.Add, null) },
+                text = { Text("记一笔资产") },
+            )
+            androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("新建资产（选择空间）") },
+                    onClick = { expanded = false; pendingType = "asset" },
+                )
+            }
+        }
         return
     }
+
     androidx.compose.foundation.layout.Box {
         ExtendedFloatingActionButton(
             onClick = { expanded = true },
@@ -153,25 +212,11 @@ private fun NewMemoFab(
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text("新建笔记") },
-                onClick = {
-                    expanded = false
-                    scope.launch {
-                        val space = vm.defaultSpaceId(familyOnly = tab == HomeTab.FAMILY)
-                        val m = vm.repo.createMemo(space, "note")
-                        onOpenEditor(m.id)
-                    }
-                },
+                onClick = { expanded = false; pendingType = "note" },
             )
             DropdownMenuItem(
                 text = { Text("新建清单") },
-                onClick = {
-                    expanded = false
-                    scope.launch {
-                        val space = vm.defaultSpaceId(familyOnly = tab == HomeTab.CHECKLIST)
-                        val m = vm.repo.createMemo(space, "checklist")
-                        onOpenEditor(m.id)
-                    }
-                },
+                onClick = { expanded = false; pendingType = "checklist" },
             )
         }
     }
@@ -273,6 +318,13 @@ fun MemoListTab(
                     memos = filtered,
                     onOpen = { onOpenEditor(it.id) },
                     actionsFor = rememberMemoActions(vm.repo),
+                    spaceNameOf = { spaceId ->
+                        when (spaces.firstOrNull { it.id == spaceId }?.type) {
+                            "family" -> "👥 家庭"
+                            "group" -> "💼 " + (spaces.firstOrNull { it.id == spaceId }?.name ?: "工作组")
+                            else -> "🔒 私人"
+                        }
+                    },
                 )
             }
         }

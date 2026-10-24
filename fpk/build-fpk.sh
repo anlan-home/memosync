@@ -14,7 +14,7 @@ DIST="$HERE/../dist"
 NATIVE="$HERE/native"
 FNPACK="$HERE/fnpack.exe"
 
-VERSION="${VERSION:-1.1.2}"
+VERSION="${VERSION:-1.1.3}"
 APPNAME="${APPNAME:-memosync}"
 DISPLAY="${DISPLAY:-家庭备忘录}"
 PORT="${PORT:-5231}"

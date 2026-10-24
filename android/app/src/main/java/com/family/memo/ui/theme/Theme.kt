@@ -35,15 +35,44 @@ private val LightScheme = lightColorScheme(
     onPrimary = Color.White,
     primaryContainer = Color(0xFFFDE9C8),
     onPrimaryContainer = AmberDeep,
+    inversePrimary = Color(0xFFFFD9A0),
+
     secondary = Color(0xFF6E655A),
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFF7E8CE),
+    onSecondaryContainer = Color(0xFF6B4A10),
+
+    tertiary = Color(0xFF8A6A4F),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFE3C7),
+    onTertiaryContainer = Color(0xFF4A2E05),
+
     background = Cream,
     onBackground = Ink,
     surface = CardCream,
     onSurface = Ink,
     surfaceVariant = Color(0xFFF1EADA),
     onSurfaceVariant = Color(0xFF6E655A),
+    surfaceTint = Amber,
+
+    // 关键：这些容器色缺失会让 NavigationBar / Dialog / Chip 回退成默认紫色
+    surfaceBright = Color(0xFFFFFDF8),
+    surfaceDim = Color(0xFFEDE6D9),
+    surfaceContainerLowest = Color(0xFFFFFFFF),
+    surfaceContainerLow = Color(0xFFFBF6EC),
+    surfaceContainer = Color(0xFFF8F3E8),
+    surfaceContainerHigh = Color(0xFFF3EDE0),
+    surfaceContainerHighest = Color(0xFFEDE6D9),
+
     outline = Line,
+    outlineVariant = Color(0xFFE4DAC7),
+    inverseSurface = Color(0xFF332E27),
+    inverseOnSurface = Color(0xFFF5EFE3),
     error = Color(0xFFC0395D),
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDADF),
+    onErrorContainer = Color(0xFF41001B),
+    scrim = Color.Black,
 )
 
 private val DarkScheme = darkColorScheme(
@@ -51,15 +80,43 @@ private val DarkScheme = darkColorScheme(
     onPrimary = Color(0xFF2A1A00),
     primaryContainer = Color(0xFF5C3D00),
     onPrimaryContainer = Color(0xFFFFD9A0),
+    inversePrimary = Color(0xFF8A5A00),
+
     secondary = Color(0xFFC4B8A5),
+    onSecondary = Color(0xFF2C261E),
+    secondaryContainer = Color(0xFF3B3226),
+    onSecondaryContainer = Color(0xFFF3E4C8),
+
+    tertiary = Color(0xFFD8B99A),
+    onTertiary = Color(0xFF3A2A18),
+    tertiaryContainer = Color(0xFF4A3722),
+    onTertiaryContainer = Color(0xFFFFE3C7),
+
     background = Color(0xFF17140F),
     onBackground = Color(0xFFEDE6D9),
     surface = Color(0xFF201C16),
     onSurface = Color(0xFFEDE6D9),
     surfaceVariant = Color(0xFF2C261E),
     onSurfaceVariant = Color(0xFFB4A995),
-    outline = Color(0xFF4A4237),
+    surfaceTint = Amber,
+
+    surfaceBright = Color(0xFF3A342B),
+    surfaceDim = Color(0xFF14120E),
+    surfaceContainerLowest = Color(0xFF100E0A),
+    surfaceContainerLow = Color(0xFF1B1813),
+    surfaceContainer = Color(0xFF211D17),
+    surfaceContainerHigh = Color(0xFF2B261F),
+    surfaceContainerHighest = Color(0xFF352F26),
+
+    outline = Color(0xFF6A6052),
+    outlineVariant = Color(0xFF443C31),
+    inverseSurface = Color(0xFFEDE6D9),
+    inverseOnSurface = Color(0xFF332E27),
     error = Color(0xFFFFB2C1),
+    onError = Color(0xFF5C0A22),
+    errorContainer = Color(0xFF7A1B36),
+    onErrorContainer = Color(0xFFFFDADF),
+    scrim = Color.Black,
 )
 
 val MemoTypography = Typography(

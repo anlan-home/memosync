@@ -29,6 +29,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 深链接配置：familymemo://setup?primary=http://nas:5231&alt=http://wan:5231 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="familymemo" android:host="setup" />
+            </intent-filter>
         </activity>
 
         <receiver android:name=".remind.ReminderReceiver" android:exported="false" />

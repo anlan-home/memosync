@@ -34,6 +34,13 @@ fun SettingsDialog(vm: HomeViewModel, onClose: () -> Unit) {
     val elder by vm.container.prefs.elderMode.collectAsState(initial = false)
     val theme by vm.container.prefs.theme.collectAsState(initial = "system")
     var confirmLogout by remember { mutableStateOf(false) }
+    val primary by vm.container.prefs.baseUrl.collectAsState(initial = "")
+    val alt by vm.container.prefs.baseUrlAlt.collectAsState(initial = "")
+    val active by vm.container.prefs.activeUrl.collectAsState(initial = "")
+    var editPrimary by remember(primary) { mutableStateOf(primary) }
+    var editAlt by remember(alt) { mutableStateOf(alt) }
+    var testResult by remember { mutableStateOf("") }
+    var testing by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onClose,
@@ -43,6 +50,65 @@ fun SettingsDialog(vm: HomeViewModel, onClose: () -> Unit) {
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                Column {
+                    Text(
+                        "服务器地址（双地址）",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "当前生效：" + (active.ifBlank { "未连接" }),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = editPrimary,
+                        onValueChange = { editPrimary = it },
+                        label = { Text("主地址（内网）") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = editAlt,
+                        onValueChange = { editAlt = it },
+                        label = { Text("备用地址（外网 / Tailscale，可留空）") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = {
+                            scope.launch { vm.container.prefs.setEndpoints(editPrimary, editAlt); vm.refreshSpaces(); testResult = "地址已保存" }
+                        }) { Text("保存地址") }
+                        TextButton(enabled = !testing, onClick = {
+                            testing = true
+                            testResult = "测试中…"
+                            scope.launch {
+                                val r = try {
+                                    vm.container.remote.resolveBaseUrl(forceProbe = true)
+                                } catch (e: Exception) {
+                                    null
+                                }
+                                testResult = when (r) {
+                                    is com.family.memo.data.api.EndpointResolver.Result.Ready ->
+                                        (if (r.switched) "已切换到" else "可用：") + r.label + "（" + r.url + "）"
+                                    is com.family.memo.data.api.EndpointResolver.Result.Failed ->
+                                        "都连不上：" + r.tried.joinToString()
+                                    is com.family.memo.data.api.EndpointResolver.Result.NotConfigured ->
+                                        "尚未填写地址"
+                                    null -> "测试失败"
+                                }
+                                testing = false
+                            }
+                        }) { Text(if (testing) "测试中…" else "测试连接") }
+                    }
+                    if (testResult.isNotBlank()) {
+                        Text(
+                            testResult,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 SettingGroup("字体大小") {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("standard" to "标准", "large" to "大", "xlarge" to "特大").forEach { (v, label) ->

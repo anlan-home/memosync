@@ -164,7 +164,9 @@ object Ids {
 object RelativeTime {
     fun format(epochMilli: Long, now: Long = System.currentTimeMillis()): String {
         val d = now - epochMilli
-        if (d < 0) return formatFuture(-d)
+        // 客户端与服务端时钟差几秒是常态：未来 60 秒内一律视为"刚刚"
+        if (d < -60_000) return formatFuture(-d)
+        if (d < 0) return "刚刚"
         return when {
             d < 60_000 -> "刚刚"
             d < 3600_000 -> "${d / 60_000} 分钟前"
