@@ -30,3 +30,4 @@ Thumbs.db
 # ---- 签名密钥（公开仓库绝不能提交）----
 android/keystore/
 android/keystore.properties
+HTTP
