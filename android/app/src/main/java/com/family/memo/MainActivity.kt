@@ -1,6 +1,9 @@
 package com.family.memo
 
 import android.os.Bundle
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.activity.compose.setContent
@@ -38,8 +41,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val elderMode by prefs.elderMode.collectAsState(initial = false)
-            val loggedIn by prefs.loggedIn.collectAsState(initial = null)
             val openMemoIdOnce = if (navGuardUsed) null else openMemoId
+            // 启动路由只决定一次：动态改变 startDestination 会让 NavHost 重建后丢失目的地（黑屏）
+            var startRoute by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                if (startRoute == null) {
+                    startRoute = if (prefs.snapshot().token.isNotBlank()) "main" else "login"
+                }
+            }
 
             MemoTheme(theme) {
                 androidx.compose.runtime.CompositionLocalProvider(
@@ -48,7 +57,16 @@ class MainActivity : ComponentActivity() {
                     },
                 ) {
                     val nav = rememberNavController()
-                    val start = loggedIn?.let { if (it) "main" else "login" } ?: return@CompositionLocalProvider
+                    val start = startRoute
+                    if (start == null) {
+                        // 启动瞬间：铺一层页面底色，避免黑屏闪烁
+                        androidx.compose.foundation.layout.Box(
+                            androidx.compose.ui.Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.background),
+                        )
+                        return@CompositionLocalProvider
+                    }
                     NavHost(nav, startDestination = start) {
                         composable("login") {
                             LoginScreen(

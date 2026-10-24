@@ -8,6 +8,17 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// 版本号唯一来源：仓库根目录 version.properties
+val appVersion: String = run {
+    val f = rootProject.file("../version.properties")
+    val p = Properties().apply { if (f.exists()) f.inputStream().use { load(it) } }
+    val major = p.getProperty("major", "1").toInt()
+    val minor = p.getProperty("minor", "0").toInt()
+    val patch = p.getProperty("patch", "0").toInt()
+    listOf(major, minor, patch).joinToString(".")
+}
+val appVersionCode: Int = appVersion.split(".").let { (it[0].toInt() * 10000) + (it[1].toInt() * 100) + it[2].toInt() }
+
 android {
     namespace = "com.family.memo"
     compileSdk = 35
@@ -16,8 +27,8 @@ android {
         applicationId = "com.family.memo"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.1.3"
+        versionCode = appVersionCode
+        versionName = appVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -58,7 +59,7 @@ import kotlinx.coroutines.launch
 
 /** 「资产」页签：数字资产列表（按到期时间升序）。 */
 @Composable
-fun AssetTab(vm: HomeViewModel, onOpenEditor: (String) -> Unit) {
+fun AssetTab(vm: HomeViewModel, onCreate: () -> Unit = {}, onOpenEditor: (String) -> Unit) {
     val memos by vm.memos.collectAsState()
     val spaces by vm.spaces.collectAsState()
     var selectedSpace by rememberSaveable { mutableStateOf("") }
@@ -69,6 +70,22 @@ fun AssetTab(vm: HomeViewModel, onOpenEditor: (String) -> Unit) {
         .sortedBy { ContentCodec.decode(it.content).expiresAt ?: Long.MAX_VALUE }
 
     Column(Modifier.fillMaxSize()) {
+        // HyperOS 风格页头：大标题 + 新建
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "资产",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onCreate) {
+                Icon(Icons.Filled.Add, "新建资产", tint = MaterialTheme.colorScheme.onBackground)
+            }
+        }
         Row(
             Modifier
                 .horizontalScroll(rememberScrollState())
@@ -84,7 +101,7 @@ fun AssetTab(vm: HomeViewModel, onOpenEditor: (String) -> Unit) {
             "🔐 账号密码同步给空间内所有成员；建议配合 Tailscale/HTTPS 使用",
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 20.dp),
         )
         if (assets.isEmpty()) {
             EmptyState("把家里的视频会员、宽带、云盘账号都记在这里")

@@ -14,7 +14,8 @@ DIST="$HERE/../dist"
 NATIVE="$HERE/native"
 FNPACK="$HERE/fnpack.exe"
 
-VERSION="${VERSION:-1.1.3}"
+# 版本号唯一来源：仓库根目录 version.properties（可用 VERSION 环境变量覆盖）
+VERSION="$(sed -n 's/^major=//p;s/^minor=//p;s/^patch=//p' "${HERE}/../version.properties" | paste -sd. -)"
 APPNAME="${APPNAME:-memosync}"
 DISPLAY="${DISPLAY:-家庭备忘录}"
 PORT="${PORT:-5231}"

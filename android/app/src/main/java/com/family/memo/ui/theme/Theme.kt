@@ -11,107 +11,111 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// 暖米黄便签主题（对应 ui/prototype.html）
+// 视觉语言参考 Miuix / HyperOS：
+// 中性浅灰页面底 + 纯白分组卡片 + 淡分隔线，琥珀色只作为强调色。
 val Amber = Color(0xFFF59E0B)
 val AmberDeep = Color(0xFFB45309)
-val Ink = Color(0xFF1F1B16)
-val Cream = Color(0xFFFDF8EF)
-val CardCream = Color(0xFFFFFDF8)
-val Line = Color(0xFFEDE6D9)
+val Ink = Color(0xFF0F0F11)
 
+val PageLight = Color(0xFFF5F5F7)
+val CardWhite = Color(0xFFFFFFFF)
+val DividerLight = Color(0xFFEDEDEF)
+val TextSecondary = Color(0xFF8A8A90)
+val TextTertiary = Color(0xFFB0B0B6)
+
+// 便签卡片 8 色（降饱和、扁平）
 val MemoCardColors = mapOf(
-    "default" to Color(0xFFFFFDF5),
-    "lemon" to Color(0xFFFFF3B0),
-    "mint" to Color(0xFFCFF3E0),
-    "sky" to Color(0xFFD6E9FF),
-    "sakura" to Color(0xFFFFE0E6),
-    "apricot" to Color(0xFFFFE3C7),
-    "lav" to Color(0xFFE8E0FF),
-    "gray" to Color(0xFFEEEEEC),
+    "default" to Color(0xFFFFFFFF),
+    "lemon" to Color(0xFFFFF8D9),
+    "mint" to Color(0xFFE3F7EC),
+    "sky" to Color(0xFFE6F1FF),
+    "sakura" to Color(0xFFFFEDF1),
+    "apricot" to Color(0xFFFFF0E0),
+    "lav" to Color(0xFFF0EAFF),
+    "gray" to Color(0xFFF2F2F4),
 )
 
 private val LightScheme = lightColorScheme(
     primary = Amber,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFFDE9C8),
+    primaryContainer = Color(0xFFFFF3DC),
     onPrimaryContainer = AmberDeep,
     inversePrimary = Color(0xFFFFD9A0),
 
-    secondary = Color(0xFF6E655A),
+    secondary = Color(0xFF6E6E74),
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFF7E8CE),
-    onSecondaryContainer = Color(0xFF6B4A10),
+    secondaryContainer = Color(0xFFEFEFF1),
+    onSecondaryContainer = Color(0xFF3A3A3E),
 
-    tertiary = Color(0xFF8A6A4F),
+    tertiary = AmberDeep,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFE3C7),
+    tertiaryContainer = Color(0xFFFFF0E0),
     onTertiaryContainer = Color(0xFF4A2E05),
 
-    background = Cream,
+    background = PageLight,
     onBackground = Ink,
-    surface = CardCream,
+    surface = PageLight,
     onSurface = Ink,
-    surfaceVariant = Color(0xFFF1EADA),
-    onSurfaceVariant = Color(0xFF6E655A),
-    surfaceTint = Amber,
+    surfaceVariant = Color(0xFFF0F0F2),
+    onSurfaceVariant = TextSecondary,
+    surfaceTint = Color.Transparent,
 
-    // 关键：这些容器色缺失会让 NavigationBar / Dialog / Chip 回退成默认紫色
-    surfaceBright = Color(0xFFFFFDF8),
-    surfaceDim = Color(0xFFEDE6D9),
+    surfaceBright = Color(0xFFFFFFFF),
+    surfaceDim = Color(0xFFEDEDEF),
     surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFFBF6EC),
-    surfaceContainer = Color(0xFFF8F3E8),
-    surfaceContainerHigh = Color(0xFFF3EDE0),
-    surfaceContainerHighest = Color(0xFFEDE6D9),
+    surfaceContainerLow = Color(0xFFFFFFFF),
+    surfaceContainer = Color(0xFFFFFFFF),
+    surfaceContainerHigh = Color(0xFFF7F7F9),
+    surfaceContainerHighest = Color(0xFFEFEFF1),
 
-    outline = Line,
-    outlineVariant = Color(0xFFE4DAC7),
-    inverseSurface = Color(0xFF332E27),
-    inverseOnSurface = Color(0xFFF5EFE3),
-    error = Color(0xFFC0395D),
+    outline = Color(0xFFE4E4E8),
+    outlineVariant = DividerLight,
+    inverseSurface = Color(0xFF26262A),
+    inverseOnSurface = Color(0xFFF5F5F7),
+    error = Color(0xFFD1455F),
     onError = Color.White,
-    errorContainer = Color(0xFFFFDADF),
-    onErrorContainer = Color(0xFF41001B),
+    errorContainer = Color(0xFFFFE3E8),
+    onErrorContainer = Color(0xFF41000F),
     scrim = Color.Black,
 )
 
 private val DarkScheme = darkColorScheme(
     primary = Amber,
     onPrimary = Color(0xFF2A1A00),
-    primaryContainer = Color(0xFF5C3D00),
+    primaryContainer = Color(0xFF4A3208),
     onPrimaryContainer = Color(0xFFFFD9A0),
     inversePrimary = Color(0xFF8A5A00),
 
-    secondary = Color(0xFFC4B8A5),
-    onSecondary = Color(0xFF2C261E),
-    secondaryContainer = Color(0xFF3B3226),
-    onSecondaryContainer = Color(0xFFF3E4C8),
+    secondary = Color(0xFFB8B8BE),
+    onSecondary = Color(0xFF232326),
+    secondaryContainer = Color(0xFF2A2A2E),
+    onSecondaryContainer = Color(0xFFE8E8EC),
 
-    tertiary = Color(0xFFD8B99A),
-    onTertiary = Color(0xFF3A2A18),
-    tertiaryContainer = Color(0xFF4A3722),
+    tertiary = Color(0xFFE0B27A),
+    onTertiary = Color(0xFF2E2010),
+    tertiaryContainer = Color(0xFF3B2A16),
     onTertiaryContainer = Color(0xFFFFE3C7),
 
-    background = Color(0xFF17140F),
-    onBackground = Color(0xFFEDE6D9),
-    surface = Color(0xFF201C16),
-    onSurface = Color(0xFFEDE6D9),
-    surfaceVariant = Color(0xFF2C261E),
-    onSurfaceVariant = Color(0xFFB4A995),
-    surfaceTint = Amber,
+    background = Color(0xFF0F0F11),
+    onBackground = Color(0xFFECECEF),
+    surface = Color(0xFF0F0F11),
+    onSurface = Color(0xFFECECEF),
+    surfaceVariant = Color(0xFF1E1E22),
+    onSurfaceVariant = Color(0xFF9A9AA0),
+    surfaceTint = Color.Transparent,
 
-    surfaceBright = Color(0xFF3A342B),
-    surfaceDim = Color(0xFF14120E),
-    surfaceContainerLowest = Color(0xFF100E0A),
-    surfaceContainerLow = Color(0xFF1B1813),
-    surfaceContainer = Color(0xFF211D17),
-    surfaceContainerHigh = Color(0xFF2B261F),
-    surfaceContainerHighest = Color(0xFF352F26),
+    surfaceBright = Color(0xFF2C2C31),
+    surfaceDim = Color(0xFF0B0B0D),
+    surfaceContainerLowest = Color(0xFF0B0B0D),
+    surfaceContainerLow = Color(0xFF17171A),
+    surfaceContainer = Color(0xFF1C1C20),
+    surfaceContainerHigh = Color(0xFF242428),
+    surfaceContainerHighest = Color(0xFF2C2C31),
 
-    outline = Color(0xFF6A6052),
-    outlineVariant = Color(0xFF443C31),
-    inverseSurface = Color(0xFFEDE6D9),
-    inverseOnSurface = Color(0xFF332E27),
+    outline = Color(0xFF3A3A40),
+    outlineVariant = Color(0xFF26262A),
+    inverseSurface = Color(0xFFECECEF),
+    inverseOnSurface = Color(0xFF26262A),
     error = Color(0xFFFFB2C1),
     onError = Color(0xFF5C0A22),
     errorContainer = Color(0xFF7A1B36),
@@ -120,11 +124,14 @@ private val DarkScheme = darkColorScheme(
 )
 
 val MemoTypography = Typography(
-    titleLarge = TextStyle(fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp),
-    titleMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 16.sp, lineHeight = 22.sp),
+    // 页面大标题（HyperOS 风格：大号、左对齐）
+    headlineMedium = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 28.sp, lineHeight = 34.sp),
+    titleLarge = TextStyle(fontWeight = FontWeight.SemiBold, fontSize = 20.sp, lineHeight = 26.sp),
+    titleMedium = TextStyle(fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 21.sp),
     bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp),
     bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 21.sp),
-    labelMedium = TextStyle(fontSize = 12.sp),
+    labelMedium = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
+    labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 14.sp),
 )
 
 /** theme: system / light / dark */
